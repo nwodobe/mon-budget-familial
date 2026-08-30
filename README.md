@@ -105,6 +105,11 @@ utilisable, mais rien n'est sauvegarde hors de l'appareil.
 
 Appliquer ensuite `supabase/migrations/0001_schema_budget_familial.sql` sur le projet.
 
+Le backend en service est le projet `dldcstmgxklumcvynlou`, region eu-west-3, dans
+l'organisation personnelle « Mon Budget Familial » (plan free). Seule la cle **publishable** est
+embarquee dans le bundle : elle est publique par nature, et la protection repose sur la RLS et
+sur les privileges, verifies par appel reel — un anonyme recoit `401 / 42501 permission denied`.
+
 ## Deploiement
 
 Le site est publie par **GitHub Pages depuis la branche `gh-pages`**, en mode « legacy » : la
