@@ -123,6 +123,18 @@ describe('provisions', () => {
     expect(s.provisionsReserveRemaining).toBe(75000)
   })
 
+  it('additionne epargne generale et provision tant qu elles ne sont pas financees', () => {
+    const l = ledger()
+    l.settings.savings_rate_pct = 15
+    income(l, 'i1', 1000000, '2026-08-01')
+    l.provisions.push({ ...meta('p1'), name: 'Assurance', target_amount: 400000, target_date: '2026-11-30', pocket_id: null, initial_amount: 0, active: true })
+    const s = computeMonthV2(l, M, REF)
+    expect(s.savingsTarget).toBe(150000)
+    expect(s.provisions[0].monthlyNeeded).toBe(100000)
+    expect(s.protectedReserveRemaining).toBe(250000)
+    expect(s.available).toBe(750000)
+  })
+
   it('ne double compte pas une provision deja alimentee dans sa poche', () => {
     const l = ledger()
     l.settings.savings_rate_pct = 0
