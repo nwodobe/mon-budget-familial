@@ -82,7 +82,7 @@ export default function Rapport() {
         <div className="banner mt"><span className={`dot ${snapshot.health === 'danger' ? 'danger' : snapshot.health === 'attention' ? 'warn' : 'ok'}`} />{snapshot.healthReason}</div>
 
         <div className="btn-row mt">
-          <button className="btn" onClick={() => download(`rapport-${month}.txt`, monthlyReportToText(ledger, month, previous), 'text/plain')}>Rapport en texte</button>
+          <button className="btn" onClick={() => download(`rapport-${month}.txt`, monthlyReportToText(ledger, month, previous, today), 'text/plain')}>Rapport en texte</button>
           <button className="btn" onClick={() => download(`depenses-${month}.csv`, expensesToCsv(ledger, month), 'text/csv')}>Dépenses en CSV</button>
         </div>
       </Card>
