@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { monthLabel, shiftMonth, currentMonth } from './domain/dates'
 import { pinIsSet } from './data/pin'
+import { isCloudConfigured } from './data/supabase'
 import { useApp } from './state/AppContext'
 import AddExpense from './ui/AddExpense'
 import Budget from './ui/Budget'
@@ -59,7 +60,13 @@ export default function App() {
             <h1>{TITLES[screen] ?? 'Mon Budget Familial'}</h1>
             <div className="sub">
               {ledger.settings.household_name} - {monthLabel(month)}
-              {!online ? ' - hors connexion' : session ? '' : ' - local seul'}
+              {!online
+                ? ' - hors connexion'
+                : session
+                  ? ''
+                  : isCloudConfigured
+                    ? ' - non connecte'
+                    : ' - local seul'}
             </div>
           </div>
           <button className="icon-btn" onClick={() => setHideAmounts(!hideAmounts)}>
