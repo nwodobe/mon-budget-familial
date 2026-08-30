@@ -113,8 +113,6 @@ export function computeMonthV2(ledger: Ledger, month: IsoMonth, reference: IsoDa
     ? provisions.reduce((s, p) => s + p.reserveRemainingThisMonth, 0)
     : 0
 
-  // Les provisions sont une forme d'epargne protegee. On retient le plus fort
-  // besoin entre objectif d'epargne et provisions, jamais leur somme.
   const protectedReserveRemaining = Math.max(base.savingsRemaining, provisionsReserveRemaining)
   const available = base.available - Math.max(0, protectedReserveRemaining - base.savingsRemaining)
   const spendable = Math.max(0, available)
@@ -266,7 +264,7 @@ export function simulateExpenseV2(ledger: Ledger, month: IsoMonth, reference: Is
     description: '__simulation__', member: 'Moi', charge_id: null, override_reason: '', discipline_flags: [],
   }
   const after = computeMonthV2({ ...ledger, expenses: [...ledger.expenses, synthetic] }, month, reference)
-  const envelope = checkOverspend(before, input.envelopeId, input.amount, ledger.settings.warn_threshold_pct)
+  const envelope = checkOverspend(before as unknown as MonthSnapshot, input.envelopeId, input.amount, ledger.settings.warn_threshold_pct)
   const flags: DisciplineFlag[] = []
   const reasons: string[] = []
   if (envelope?.warningOnly) flags.push('envelope-warning')
