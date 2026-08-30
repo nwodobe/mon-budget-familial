@@ -39,10 +39,8 @@ describe('E2E discipline financiere - foyer 1 500 000 FCFA', () => {
     l.settings.savings_rate_pct = 15
     l.settings.warn_threshold_pct = 80
 
-    // 1. Salaire encaissé.
     addIncome(l, 'salary', 1_500_000, '2026-08-01')
 
-    // 2. Charges obligatoires : 555 000 FCFA.
     addCharge(l, 'rent', 'Loyer', 300_000, 5)
     addCharge(l, 'school', 'École', 150_000, 10)
     addCharge(l, 'internet', 'Internet', 30_000, 20)
@@ -54,7 +52,6 @@ describe('E2E discipline financiere - foyer 1 500 000 FCFA', () => {
     expect(s.savingsTarget).toBe(225_000)
     expect(s.available).toBe(720_000)
 
-    // 3. Enveloppes compatibles avec la capacité de 720 000 FCFA.
     addEnvelope(l, 'food', 'Alimentation', 250_000, 0)
     addEnvelope(l, 'transport', 'Transport', 120_000, 1)
     addEnvelope(l, 'restaurant', 'Restaurant', 100_000, 2)
@@ -63,39 +60,36 @@ describe('E2E discipline financiere - foyer 1 500 000 FCFA', () => {
     expect(s.envelopeAllocated).toBe(470_000)
     expect(s.envelopeAllocationStatus).toBe('equilibre')
 
-    // 4. Dépense normale.
     let sim = simulateExpenseV2(l, MONTH, TODAY, { amount: 30_000, envelopeId: 'food', date: TODAY })
     expect(sim.globalRisk).toBe('none')
     expect(sim.envelope).toBeNull()
     addExpense(l, 'expense-normal', 30_000, 'food')
     expect(computeMonthV2(l, MONTH, TODAY).available).toBe(690_000)
 
-    // 5. Le seuil de 80 % est signalé avant validation.
     addExpense(l, 'restaurant-before', 60_000, 'restaurant', '2026-08-15')
     sim = simulateExpenseV2(l, MONTH, TODAY, { amount: 20_000, envelopeId: 'restaurant', date: TODAY })
     expect(sim.envelope?.warningOnly).toBe(true)
     expect(sim.envelope?.newTotal).toBe(80_000)
 
-    // 6. Une dépense peut rester dans son enveloppe et pourtant être globalement dangereuse.
-    // On crée une enveloppe de marge importante sans l'utiliser auparavant : le contrôle
-    // global doit rester prioritaire sur le contrôle local de l'enveloppe.
     addEnvelope(l, 'project', 'Projet familial', 700_000, 3)
     addExpense(l, 'other-spend', 80_000, 'food', '2026-08-14')
     s = computeMonthV2(l, MONTH, TODAY)
     expect(s.available).toBe(550_000)
     sim = simulateExpenseV2(l, MONTH, TODAY, { amount: 560_000, envelopeId: 'project', date: TODAY })
-    expect(sim.envelope).toBeNull()
+    // 560 000 reste sous le plafond de 700 000 : pas de dépassement d'enveloppe.
+    // Il atteint exactement le seuil orange de 80 %, ce qui est normal, mais
+    // l'alerte globale rouge doit rester prioritaire car le mois devient déficitaire.
+    expect(sim.envelope?.warningOnly).toBe(true)
+    expect(sim.envelope?.overBy).toBe(0)
     expect(sim.globalRisk).toBe('danger')
     expect(sim.availableAfter).toBe(-10_000)
 
-    // 7. Un revenu futur ne doit jamais sauver artificiellement ce déficit.
     addIncome(l, 'future-bonus', 500_000, '2026-08-30')
     s = computeMonthV2(l, MONTH, TODAY)
     expect(s.incomeExpected).toBe(500_000)
     expect(s.income).toBe(1_500_000)
     expect(s.available).toBe(550_000)
 
-    // 8. Préparer une assurance future ajoute une réserve distincte de l'épargne générale.
     l.provisions.push({
       ...meta('insurance'),
       name: 'Assurance voiture',
@@ -108,7 +102,7 @@ describe('E2E discipline financiere - foyer 1 500 000 FCFA', () => {
     s = computeMonthV2(l, MONTH, TODAY)
     expect(s.provisions[0].monthlyNeeded).toBe(75_000)
     expect(s.provisionsReserveRemaining).toBe(75_000)
-    expect(s.protectedReserveRemaining).toBe(300_000) // 225 000 épargne + 75 000 provision
+    expect(s.protectedReserveRemaining).toBe(300_000)
     expect(s.available).toBe(475_000)
   })
 })
