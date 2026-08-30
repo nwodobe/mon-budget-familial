@@ -2,17 +2,6 @@ import { COLLECTIONS, type CollectionName, type Ledger } from '../domain/types'
 import { changesSince, mergeCollection, nowIso, type SyncMeta } from './storage'
 import { supabase } from './supabase'
 
-/**
- * Synchronisation bidirectionnelle avec Supabase.
- *
- * Anti-doublon : chaque ligne porte un identifiant genere par le client, et
- * l'ecriture serveur est un `upsert` sur cet identifiant. Rejouer un envoi
- * interrompu reecrit la meme ligne au lieu d'en creer une seconde.
- *
- * Arbitrage des conflits : la version dont `updated_at` est la plus recente
- * l'emporte, des deux cotes, ce qui rend l'operation commutative.
- */
-
 export interface SyncResult {
   ok: boolean
   pushed: number
@@ -20,7 +9,6 @@ export interface SyncResult {
   message: string
 }
 
-/** Table Supabase correspondant a une collection locale. */
 const TABLE: Record<CollectionName, string> = {
   envelopes: 'mbf_envelopes',
   pockets: 'mbf_pockets',
@@ -31,6 +19,7 @@ const TABLE: Record<CollectionName, string> = {
   charge_payments: 'mbf_charge_payments',
   savings: 'mbf_savings',
   goals: 'mbf_goals',
+  provisions: 'mbf_provisions',
 }
 
 export async function synchronize(
@@ -69,7 +58,6 @@ export async function synchronize(
   let pulled = 0
 
   try {
-    // 1. Envoi des modifications locales.
     const changes = changesSince(ledger, meta.last_push)
     for (const name of COLLECTIONS) {
       const rows = changes[name] as Record<string, unknown>[]
@@ -80,14 +68,12 @@ export async function synchronize(
       pushed += rows.length
     }
 
-    // 2. Reglages du foyer (une seule ligne par compte).
     const { error: settingsError } = await supabase.from('mbf_settings').upsert(
       { user_id: user.id, ...ledger.settings },
       { onConflict: 'user_id' },
     )
     if (settingsError) throw new Error(`mbf_settings : ${settingsError.message}`)
 
-    // 3. Reception des modifications distantes.
     let next: Ledger = { ...ledger }
     for (const name of COLLECTIONS) {
       let query = supabase.from(TABLE[name]).select('*')
@@ -148,7 +134,6 @@ export async function synchronize(
   }
 }
 
-/** Retire les colonnes propres au serveur, absentes du modele local. */
 function stripServerColumns(row: Record<string, unknown>): Record<string, unknown> {
   const { user_id: _user, created_at: _created, ...rest } = row
   void _user
