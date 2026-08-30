@@ -1,5 +1,7 @@
 # Mon Budget Familial
 
+**En ligne : https://nwodobe.github.io/mon-budget-familial/**
+
 Application web installable (PWA) de pilotage du budget familial, en FCFA (XOF).
 
 Elle ne cherche pas a etre un carnet de depenses de plus. Elle repond chaque jour a une seule
@@ -102,6 +104,25 @@ Sans ces variables, l'application fonctionne en **local seul** : elle reste plei
 utilisable, mais rien n'est sauvegarde hors de l'appareil.
 
 Appliquer ensuite `supabase/migrations/0001_schema_budget_familial.sql` sur le projet.
+
+## Deploiement
+
+Le site est publie par **GitHub Pages depuis la branche `gh-pages`**, en mode « legacy » : la
+branche contient deja le site construit, GitHub ne lance aucune compilation et **aucune minute
+GitHub Actions n'est consommee**.
+
+Pour republier apres une modification :
+
+```bash
+APP_BASE=/mon-budget-familial/ npm run build   # chemins prefixes pour le sous-repertoire
+# copier dist/ dans un dossier de travail, y ajouter .nojekyll et 404.html,
+# puis pousser ce dossier sur la branche gh-pages
+```
+
+`APP_BASE` est essentiel : GitHub Pages sert le site depuis un sous-repertoire, et des chemins
+absolus mettraient le service worker hors de sa portee et rendraient le manifeste introuvable.
+Sans cette variable, la base vaut `/`, ce qui convient a un deploiement a la racine d'un domaine
+(Netlify, `netlify.toml` fourni).
 
 ## Etat des controles
 
