@@ -14,6 +14,7 @@ export default function Budget() {
   const [editing, setEditing] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const totalSpent = snapshot.envelopes.reduce((s, e) => s + e.spent, 0)
+  const provisionTarget = snapshot.provisions.reduce((s, p) => s + p.monthlyNeeded, 0)
   const used = new Set(snapshot.envelopes.map((e) => e.name.toLowerCase()))
   const missing = SUGGESTIONS.filter((s) => !used.has(s.toLowerCase()))
 
@@ -26,7 +27,8 @@ export default function Budget() {
             <Row k="Revenus encore attendus" v={<Money value={snapshot.incomeExpected} />} note="Non inclus dans votre Disponible à dépenser" />
           )}
           <Row k="Charges obligatoires" v={<Money value={snapshot.chargesDue} />} />
-          <Row k="Épargne / provisions protégées" v={<Money value={Math.max(snapshot.savingsTarget, snapshot.provisions.reduce((s, p) => s + p.monthlyNeeded, 0))} />} />
+          <Row k="Épargne décidée" v={<Money value={snapshot.savingsTarget} />} />
+          <Row k="Provisions du mois" v={<Money value={provisionTarget} />} />
           <Row k="Disponible pour enveloppes" v={<Money value={snapshot.envelopeCapacity} />} />
           <Row k="Enveloppes affectées" v={<Money value={snapshot.envelopeAllocated} />} />
           <Row
