@@ -7,8 +7,12 @@
  * appareil. Seule la coquille applicative est mise en cache.
  */
 
-const CACHE = 'mbf-shell-v1'
-const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png']
+const CACHE = 'mbf-shell-v2'
+
+// Chemins RELATIFS au script du service worker. Ils resolvent donc aussi bien
+// a la racine d'un domaine que dans un sous-repertoire (GitHub Pages).
+const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png']
+const INDEX = new URL('./index.html', self.location.href).href
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -41,7 +45,7 @@ self.addEventListener('fetch', (event) => {
   // Navigation : reseau d'abord, coquille en repli hors connexion.
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request).catch(() => caches.match('/index.html').then((r) => r ?? Response.error())),
+      fetch(request).catch(() => caches.match(INDEX).then((r) => r ?? Response.error())),
     )
     return
   }
