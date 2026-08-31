@@ -129,6 +129,39 @@ absolus mettraient le service worker hors de sa portee et rendraient le manifest
 Sans cette variable, la base vaut `/`, ce qui convient a un deploiement a la racine d'un domaine
 (Netlify, `netlify.toml` fourni).
 
+## Application Android (APK)
+
+L'application web est enveloppee par **Capacitor**. Le code est le meme : l'APK embarque le
+bundle construit et l'affiche dans une WebView, sans serveur ni reseau au demarrage.
+
+```bash
+npm run build                       # base "/", variables VITE_SUPABASE_* incluses
+npx cap sync android                # copie dist/ dans le projet natif
+cd android && ./gradlew clean assembleDebug
+# -> android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Variables d'environnement necessaires au build natif :
+
+```bash
+export JAVA_HOME=/c/Dev/tools/jdk/jdk-21.0.11+10
+export ANDROID_HOME=/c/Dev/tools/android-sdk
+```
+
+Points de conception propres a l'APK :
+
+- **`clean` avant `assembleDebug`, toujours.** Un build incremental laisse des artefacts
+  residuels : la taille varie et l'empreinte SHA-256 n'est plus reproductible.
+- **Aucun service worker dans l'APK.** Les fichiers sont deja sur l'appareil, et un cache
+  pourrait servir l'ancienne version apres une mise a jour (`src/main.tsx`).
+- **`appId` = `io.github.nwodobe.monbudgetfamilial`.** Un identifiant d'application est
+  **immuable apres un premier depot sur le Play Store** : celui-ci suit un domaine reellement
+  detenu, il n'aura pas a changer.
+- Les fichiers web copies dans `android/app/src/main/assets/public` contiennent la cle
+  publique Supabase ; ce repertoire est **exclu du depot** par le `.gitignore` de Capacitor.
+- Les icones et ecrans de demarrage sont **generes** par `node scripts/make-icons.mjs` puis
+  `npx capacitor-assets generate --android` : aucun binaire opaque dans le depot.
+
 ## Etat des controles
 
 Verifie par execution le 30 aout 2026 :
