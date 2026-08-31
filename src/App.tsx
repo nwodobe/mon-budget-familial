@@ -12,32 +12,26 @@ import Epargne from './ui/Epargne'
 import Historique from './ui/Historique'
 import Objectifs from './ui/Objectifs'
 import Profil from './ui/Profil'
+import Provisions from './ui/Provisions'
 import Rapport from './ui/Rapport'
 import Revenus from './ui/Revenus'
 import Verrou from './ui/Verrou'
 
 const TITLES: Record<string, string> = {
   accueil: 'Mon Budget Familial',
-  budget: 'Enveloppes budgetaires',
+  budget: 'Enveloppes budgétaires',
   objectifs: 'Objectifs',
   profil: 'Profil',
   revenus: 'Revenus',
   charges: 'Charges obligatoires',
-  epargne: 'Epargne',
+  epargne: 'Épargne',
+  preparer: 'À préparer',
   historique: 'Historique',
   rapport: 'Rapports',
   connexion: 'Compte',
 }
 
-/**
- * Jusqu'ou l'on peut avancer dans le futur.
- *
- * Interdire tout mois a venir etait une erreur : un salaire tombe le 1er, un
- * loyer est du le 5, et l'on prepare le mois suivant avant qu'il commence.
- * Une saisie datee du mois prochain devenait alors invisible a celui qui
- * venait de la faire. Douze mois suffisent a preparer, sans laisser errer
- * dans des mois vides.
- */
+/** Un budget se prépare avant que le mois commence. */
 const DERNIER_MOIS_CONSULTABLE = shiftMonth(currentMonth(), 12)
 
 const TABS = [
@@ -76,7 +70,7 @@ export default function App() {
                 : session
                   ? ''
                   : isCloudConfigured
-                    ? ' - non connecte'
+                    ? ' - non connecté'
                     : ' - local seul'}
             </div>
           </div>
@@ -90,9 +84,7 @@ export default function App() {
         {screen !== 'profil' && screen !== 'connexion' && (
           <div className="card" style={{ padding: '10px 14px' }}>
             <div className="month-switch">
-              <button className="btn small ghost" onClick={() => setMonth(shiftMonth(month, -1))}>
-                Mois precedent
-              </button>
+              <button className="btn small ghost" onClick={() => setMonth(shiftMonth(month, -1))}>Mois précédent</button>
               <span className="m">{monthLabel(month)}</span>
               <button
                 className="btn small ghost"
@@ -106,7 +98,6 @@ export default function App() {
         )}
 
         {isEmpty && screen === 'accueil' && <Bienvenue go={setScreen} />}
-
         {screen === 'accueil' && <Dashboard go={setScreen} />}
         {screen === 'budget' && <Budget />}
         {screen === 'objectifs' && <Objectifs />}
@@ -114,14 +105,13 @@ export default function App() {
         {screen === 'revenus' && <Revenus />}
         {screen === 'charges' && <Charges />}
         {screen === 'epargne' && <Epargne />}
+        {screen === 'preparer' && <Provisions />}
         {screen === 'historique' && <Historique />}
         {screen === 'rapport' && <Rapport />}
         {screen === 'connexion' && <Connexion onDone={() => setScreen('profil')} />}
 
         {!['accueil', 'budget', 'objectifs', 'profil'].includes(screen) && (
-          <button className="btn ghost" onClick={() => setScreen('accueil')}>
-            Retour a l accueil
-          </button>
+          <button className="btn ghost" onClick={() => setScreen('accueil')}>Retour à l'accueil</button>
         )}
       </main>
 
@@ -139,10 +129,7 @@ export default function App() {
       </nav>
 
       {adding && <AddExpense onClose={() => setAdding(false)} />}
-
-      {snapshot.health === 'danger' && screen === 'accueil' && !isEmpty && (
-        <div style={{ display: 'none' }} aria-hidden />
-      )}
+      {snapshot.health === 'danger' && screen === 'accueil' && !isEmpty && <div style={{ display: 'none' }} aria-hidden />}
     </div>
   )
 }
@@ -150,26 +137,13 @@ export default function App() {
 function Bienvenue({ go }: { go: (s: string) => void }) {
   return (
     <section className="card">
-      <h3>Trois etapes pour demarrer</h3>
+      <h3>Trois étapes pour démarrer</h3>
       <p className="tiny" style={{ marginTop: 0 }}>
-        L application repond a une seule question : combien puis-je encore depenser sans mettre en danger mes charges,
-        mon epargne et mes objectifs ? Il lui faut d abord ces trois elements.
+        L'application répond à une seule question : combien puis-je encore dépenser sans mettre en danger mes charges, mon épargne et mes objectifs ?
       </p>
-      <div className="btn-row" style={{ marginBottom: 10 }}>
-        <button className="btn primary" onClick={() => go('revenus')}>
-          1. Mes revenus
-        </button>
-      </div>
-      <div className="btn-row" style={{ marginBottom: 10 }}>
-        <button className="btn" onClick={() => go('charges')}>
-          2. Mes charges fixes
-        </button>
-      </div>
-      <div className="btn-row">
-        <button className="btn" onClick={() => go('budget')}>
-          3. Mes enveloppes
-        </button>
-      </div>
+      <div className="btn-row" style={{ marginBottom: 10 }}><button className="btn primary" onClick={() => go('revenus')}>1. Mes revenus</button></div>
+      <div className="btn-row" style={{ marginBottom: 10 }}><button className="btn" onClick={() => go('charges')}>2. Mes charges fixes</button></div>
+      <div className="btn-row"><button className="btn" onClick={() => go('budget')}>3. Mes enveloppes</button></div>
     </section>
   )
 }

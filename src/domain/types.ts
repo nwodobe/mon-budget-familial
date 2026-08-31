@@ -1,21 +1,10 @@
-/**
- * Modele de donnees de Mon Budget Familial.
- *
- * Regle transversale : tous les montants sont des ENTIERS de FCFA (XOF).
- * Le franc CFA n'a pas de subdivision utilisee au quotidien ; travailler en
- * entiers supprime toute erreur de virgule flottante dans les cumuls.
- *
- * Toutes les dates sont des chaines ISO "YYYY-MM-DD" (date civile locale,
- * jamais un instant UTC) et tous les mois des chaines "YYYY-MM".
- */
-
 export type IsoDate = string
 export type IsoMonth = string
 
 export type PaymentMethod = 'especes' | 'wave' | 'orange_money' | 'mtn_momo' | 'banque' | 'autre'
 
 export const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
-  { value: 'especes', label: 'Especes' },
+  { value: 'especes', label: 'Espèces' },
   { value: 'wave', label: 'Wave' },
   { value: 'orange_money', label: 'Orange Money' },
   { value: 'mtn_momo', label: 'MTN MoMo' },
@@ -24,8 +13,8 @@ export const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
 ]
 
 export type ChargeFrequency = 'mensuelle' | 'trimestrielle' | 'annuelle' | 'ponctuelle'
+export type DisciplineFlag = 'envelope-warning' | 'envelope-over' | 'global-warning' | 'global-danger'
 
-/** Enregistrement synchronisable : identifiant client, horodatage, effacement logique. */
 export interface SyncedRecord {
   id: string
   updated_at: string
@@ -44,11 +33,9 @@ export interface Income extends SyncedRecord {
 export interface Envelope extends SyncedRecord {
   name: string
   planned: number
-  /** Ordre d'affichage. */
   position: number
 }
 
-/** Enveloppe redefinie pour un mois donne (sinon on retient Envelope.planned). */
 export interface BudgetOverride extends SyncedRecord {
   month: IsoMonth
   envelope_id: string
@@ -62,24 +49,20 @@ export interface Expense extends SyncedRecord {
   method: PaymentMethod
   description: string
   member: string
-  /** Renseigne quand la depense est le reglement d'une charge obligatoire. */
   charge_id: string | null
-  /** Justification saisie quand l'utilisateur a force un depassement d'enveloppe. */
   override_reason: string
+  discipline_flags?: DisciplineFlag[]
 }
 
 export interface Charge extends SyncedRecord {
   label: string
   amount: number
-  /** Jour d'echeance dans le mois, 1 a 31 (rabattu sur le dernier jour si besoin). */
   due_day: number
   frequency: ChargeFrequency
-  /** Premier mois ou la charge est due. Pour "ponctuelle", le seul mois du. */
   start_month: IsoMonth
   active: boolean
 }
 
-/** Reglement d'une charge pour un mois donne. */
 export interface ChargePayment extends SyncedRecord {
   charge_id: string
   month: IsoMonth
@@ -107,16 +90,21 @@ export interface Goal extends SyncedRecord {
   name: string
   target_amount: number
   target_date: IsoDate
-  /** Poche d'epargne qui alimente l'objectif ; null = suivi manuel. */
   pocket_id: string | null
-  /** Montant deja acquis hors poche (apport initial declare). */
   initial_amount: number
 }
 
+export interface Provision extends SyncedRecord {
+  name: string
+  target_amount: number
+  target_date: IsoDate
+  pocket_id: string | null
+  initial_amount: number
+  active: boolean
+}
+
 export interface Settings {
-  /** Taux d'epargne minimum, en pourcentage du revenu du mois. */
   savings_rate_pct: number
-  /** Seuil d'alerte precoce sur une enveloppe, en pourcentage. */
   warn_threshold_pct: number
   household_name: string
   members: string[]
@@ -142,6 +130,7 @@ export interface Ledger {
   pockets: Pocket[]
   savings: SavingsMovement[]
   goals: Goal[]
+  provisions: Provision[]
 }
 
 export function emptyLedger(): Ledger {
@@ -156,10 +145,10 @@ export function emptyLedger(): Ledger {
     pockets: [],
     savings: [],
     goals: [],
+    provisions: [],
   }
 }
 
-/** Les collections synchronisables, dans l'ordre d'application des dependances. */
 export const COLLECTIONS = [
   'envelopes',
   'pockets',
@@ -170,6 +159,7 @@ export const COLLECTIONS = [
   'charge_payments',
   'savings',
   'goals',
+  'provisions',
 ] as const
 
 export type CollectionName = (typeof COLLECTIONS)[number]

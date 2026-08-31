@@ -10,10 +10,8 @@ const LEDGER_KEY = 'mbf.ledger.v1'
 const META_KEY = 'mbf.meta.v1'
 
 export interface SyncMeta {
-  /** Horodatage du dernier import reussi depuis le serveur. */
   last_pull: string | null
   last_push: string | null
-  /** Compte auquel appartiennent les donnees locales. */
   owner_id: string | null
   last_error: string | null
 }
@@ -26,7 +24,6 @@ export function nowIso(): string {
 
 export function newId(): string {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return crypto.randomUUID()
-  // Repli deterministe pour les environnements sans WebCrypto.
   return 'id-' + Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
 
@@ -47,6 +44,7 @@ export function loadLedger(): Ledger {
       pockets: parsed.pockets ?? base.pockets,
       savings: parsed.savings ?? base.savings,
       goals: parsed.goals ?? base.goals,
+      provisions: parsed.provisions ?? base.provisions,
     }
   } catch {
     return emptyLedger()
@@ -75,13 +73,6 @@ export function clearLocal(): void {
   localStorage.removeItem(META_KEY)
 }
 
-/**
- * Fusionne une ligne entrante dans une collection.
- *
- * Cle de deduplication : l'identifiant, genere par le client. Rejouer deux
- * fois la meme synchronisation ne peut donc pas creer de doublon. En cas de
- * conflit, la version dont `updated_at` est la plus recente l'emporte.
- */
 export function mergeRow<T extends { id: string; updated_at: string }>(rows: T[], incoming: T): T[] {
   const index = rows.findIndex((r) => r.id === incoming.id)
   if (index === -1) return [...rows, incoming]
@@ -100,7 +91,6 @@ export function mergeCollection<T extends { id: string; updated_at: string }>(ro
   return out
 }
 
-/** Lignes modifiees depuis un horodatage donne, a pousser vers le serveur. */
 export function changesSince(ledger: Ledger, since: string | null): Record<CollectionName, unknown[]> {
   const out = {} as Record<CollectionName, unknown[]>
   for (const name of COLLECTIONS) {

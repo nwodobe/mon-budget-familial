@@ -39,21 +39,14 @@ export function monthsBetween(a: IsoMonth, b: IsoMonth): number {
   return (yb - ya) * 12 + (mb - ma)
 }
 
-/**
- * Date d'echeance reelle d'une charge dans un mois : le jour demande, rabattu
- * sur le dernier jour du mois quand il n'existe pas (31 en fevrier).
- */
+/** Date d'echeance reelle dans le mois, rabatue sur le dernier jour. */
 export function dueDateOf(month: IsoMonth, dueDay: number): IsoDate {
   const last = daysInMonth(month)
   const day = Math.min(Math.max(1, Math.trunc(dueDay)), last)
   return `${month}-${String(day).padStart(2, '0')}`
 }
 
-/**
- * Jours restants dans le mois, jour de reference INCLUS.
- * Vaut le mois entier si la reference est anterieure au mois, et 0 si elle
- * lui est posterieure (le mois est clos, il n'y a plus rien a etaler).
- */
+/** Jours restants, jour de reference inclus. */
 export function remainingDays(month: IsoMonth, reference: IsoDate): number {
   const total = daysInMonth(month)
   const refMonth = reference.slice(0, 7)
@@ -61,6 +54,18 @@ export function remainingDays(month: IsoMonth, reference: IsoDate): number {
   if (refMonth > month) return 0
   const day = Number(reference.slice(8, 10))
   return total - day + 1
+}
+
+/**
+ * Jours civils ecoules en incluant le jour courant. Utile quand des depenses
+ * du jour sont deja incluses dans la moyenne observee.
+ */
+export function elapsedDays(month: IsoMonth, reference: IsoDate): number {
+  const total = daysInMonth(month)
+  const refMonth = reference.slice(0, 7)
+  if (refMonth < month) return 0
+  if (refMonth > month) return total
+  return Math.min(total, Math.max(1, Number(reference.slice(8, 10))))
 }
 
 const MONTH_LABELS = [
