@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/financial-discipline-v2
+      - consolidation/financial-discipline-v2
   pull_request:
     branches:
       - main
@@ -14,7 +15,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,14 +26,42 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Tests
+      - name: Tests including financial E2E
         run: npm test
 
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Production build
+      - name: Production web build for GitHub Pages
         run: APP_BASE=/mon-budget-familial/ npm run build
+
+      - name: Reject leaked Windows paths
+        run: |
+          if grep -R -E '(/Users/User/AppData|[A-Za-z]:\\\\Users\\\\)' dist; then
+            echo 'Local Windows path leaked into web build.'
+            exit 1
+          fi
+
+      - name: Native web bundle
+        run: npm run build
+
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      - name: Build Android debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew clean assembleDebug
+
+      - name: Verify APK exists
+        run: test -s android/app/build/outputs/apk/debug/app-debug.apk
