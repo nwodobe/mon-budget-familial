@@ -306,6 +306,24 @@ describe('disponible a depenser', () => {
     expect(Number.isFinite(s.dailyBudget)).toBe(true)
   })
 
+  it('traite un mois a venir comme entierement devant soi', () => {
+    // Cas reel : un salaire date du 1er septembre, consulte le 31 aout.
+    const l = ledger()
+    l.settings.savings_rate_pct = 50
+    addIncome(l, 'i1', 1600000, '2026-09-01')
+    addIncome(l, 'i2', 275000, '2026-09-10')
+
+    const s = computeMonth(l, '2026-09', '2026-08-31')
+    expect(s.income).toBe(1875000)
+    expect(s.daysRemaining).toBe(30) // le mois entier, pas zero
+    expect(s.daysElapsed).toBe(0)
+    expect(s.savingsTarget).toBe(937500)
+    expect(s.available).toBe(937500)
+    expect(s.dailyBudget).toBe(31250)
+    // Rien ne s'est encore passe : la saisie ne peut pas etre jugee.
+    expect(s.score.components.find((c) => c.key === 'regularite')?.applicable).toBe(false)
+  })
+
   it('ignore les lignes effacees', () => {
     const l = ledger()
     addIncome(l, 'i1', 500000)

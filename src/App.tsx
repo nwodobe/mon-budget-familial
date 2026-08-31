@@ -29,6 +29,17 @@ const TITLES: Record<string, string> = {
   connexion: 'Compte',
 }
 
+/**
+ * Jusqu'ou l'on peut avancer dans le futur.
+ *
+ * Interdire tout mois a venir etait une erreur : un salaire tombe le 1er, un
+ * loyer est du le 5, et l'on prepare le mois suivant avant qu'il commence.
+ * Une saisie datee du mois prochain devenait alors invisible a celui qui
+ * venait de la faire. Douze mois suffisent a preparer, sans laisser errer
+ * dans des mois vides.
+ */
+const DERNIER_MOIS_CONSULTABLE = shiftMonth(currentMonth(), 12)
+
 const TABS = [
   { key: 'accueil', label: 'Accueil' },
   { key: 'budget', label: 'Budget' },
@@ -86,7 +97,7 @@ export default function App() {
               <button
                 className="btn small ghost"
                 onClick={() => setMonth(shiftMonth(month, 1))}
-                disabled={month >= currentMonth()}
+                disabled={month >= DERNIER_MOIS_CONSULTABLE}
               >
                 Mois suivant
               </button>
