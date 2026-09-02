@@ -46,36 +46,56 @@ const TABS: { key: string; label: string; icon: IconName }[] = [
 
 const PRIMARY = new Set(['accueil', 'budget', 'historique', 'plus'])
 
+type NavigationState = {
+  screen?: string
+  overlay?: 'add'
+}
+
 export default function App() {
   const { month, setMonth, online, session, hideAmounts, setHideAmounts, ledger } = useApp()
   const [screen, setScreen] = useState(() => sessionStorage.getItem('mbf_screen') || 'accueil')
   const [adding, setAdding] = useState(false)
   const [locked, setLocked] = useState(() => pinIsSet())
-  const [, setHistory] = useState<string[]>(['accueil'])
 
-  useEffect(() => { sessionStorage.setItem('mbf_screen', screen) }, [screen])
+  useEffect(() => {
+    sessionStorage.setItem('mbf_screen', screen)
+  }, [screen])
+
+  useEffect(() => {
+    const state = window.history.state as NavigationState | null
+    if (!state?.screen) window.history.replaceState({ screen }, '', window.location.href)
+  }, [])
 
   function navigate(next: string) {
     if (next === screen) return
-    setHistory((h) => [...h.slice(-9), screen])
+    window.history.pushState({ screen: next }, '', window.location.href)
     setScreen(next)
   }
 
+  function openAdd() {
+    if (adding) return
+    window.history.pushState({ screen, overlay: 'add' }, '', window.location.href)
+    setAdding(true)
+  }
+
+  function closeAdd() {
+    const state = window.history.state as NavigationState | null
+    if (state?.overlay === 'add') {
+      window.history.back()
+      return
+    }
+    setAdding(false)
+  }
+
   useEffect(() => {
-    const onPop = () => {
-      if (adding) { setAdding(false); return }
-      setHistory((h) => {
-        const previous = h[h.length - 1]
-        if (previous && previous !== screen) {
-          setScreen(previous)
-          return h.slice(0, -1)
-        }
-        return h
-      })
+    const onPop = (event: PopStateEvent) => {
+      const state = event.state as NavigationState | null
+      if (adding) setAdding(false)
+      setScreen(state?.screen || 'accueil')
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
-  }, [adding, screen])
+  }, [adding])
 
   if (locked) return <Verrou onUnlock={() => setLocked(false)} />
 
@@ -108,7 +128,7 @@ export default function App() {
         )}
 
         {isEmpty && screen === 'accueil' && <Bienvenue go={navigate} />}
-        {screen === 'accueil' && <Dashboard go={navigate} />}
+        {screen === 'accueil' && <Dashboard go={navigate} onAdd={openAdd} />}
         {screen === 'budget' && <Budget />}
         {screen === 'historique' && <Historique />}
         {screen === 'plus' && <Plus go={navigate} />}
@@ -127,13 +147,13 @@ export default function App() {
       <nav className="tabbar" aria-label="Navigation principale">
         {TABS.map((t) => {
           const active = t.key !== 'ajouter' && screen === t.key
-          return <button key={t.key} aria-current={active ? 'page' : undefined} className={`tab ${t.key === 'ajouter' ? 'add' : ''} ${active ? 'on' : ''}`} onClick={() => t.key === 'ajouter' ? setAdding(true) : navigate(t.key)}>
+          return <button key={t.key} aria-current={active ? 'page' : undefined} className={`tab ${t.key === 'ajouter' ? 'add' : ''} ${active ? 'on' : ''}`} onClick={() => t.key === 'ajouter' ? openAdd() : navigate(t.key)}>
             <span className="tab-icon"><Icon name={t.icon} size={22}/></span><span>{t.label}</span>
           </button>
         })}
       </nav>
 
-      {adding && <AddExpense onClose={() => setAdding(false)} />}
+      {adding && <AddExpense onClose={closeAdd} />}
     </div>
   )
 }
