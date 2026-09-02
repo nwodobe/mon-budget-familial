@@ -29,6 +29,7 @@ export default function Plus({ go }: { go: (screen: string) => void }) {
         />
         <MenuItem icon="shield" title="Sécurité" subtitle="Code PIN et confidentialité" onClick={() => go('profil')} />
         <MenuItem icon="backup" title="Sauvegarde" subtitle="Exporter ou restaurer les données" onClick={() => go('profil')} />
+        {session && <MenuItem icon="alert" title="Supprimer mon compte" subtitle="Effacer définitivement le compte et les données cloud" onClick={() => go('suppression')} />}
       </Card>
 
       <div className="app-version">Mon Budget Familial · Discipline Financière V2</div>
