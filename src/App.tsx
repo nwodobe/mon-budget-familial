@@ -51,7 +51,7 @@ export default function App() {
   const [screen, setScreen] = useState(() => sessionStorage.getItem('mbf_screen') || 'accueil')
   const [adding, setAdding] = useState(false)
   const [locked, setLocked] = useState(() => pinIsSet())
-  const [history, setHistory] = useState<string[]>(['accueil'])
+  const [, setHistory] = useState<string[]>(['accueil'])
 
   useEffect(() => { sessionStorage.setItem('mbf_screen', screen) }, [screen])
 
