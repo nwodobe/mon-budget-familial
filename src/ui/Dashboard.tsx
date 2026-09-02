@@ -9,7 +9,7 @@ const HEALTH_LABEL: Record<string, string> = {
   danger: 'Budget en danger',
 }
 
-export default function Dashboard({ go }: { go: (screen: string) => void }) {
+export default function Dashboard({ go, onAdd }: { go: (screen: string) => void; onAdd: () => void }) {
   const { snapshot: s, ledger, goals, today, month } = useApp()
   const money = useMoneyText()
   const week = computeWeek(ledger, s as unknown as MonthSnapshot, today)
@@ -35,7 +35,7 @@ export default function Dashboard({ go }: { go: (screen: string) => void }) {
     </section>
 
     <div className="quick-actions">
-      <button onClick={() => document.querySelector<HTMLButtonElement>('.tab.add')?.click()}><span><Icon name="plus"/></span>Dépense</button>
+      <button onClick={onAdd}><span><Icon name="plus"/></span>Dépense</button>
       <button onClick={() => go('revenus')}><span><Icon name="income"/></span>Revenu</button>
       <button onClick={() => go('epargne')}><span><Icon name="savings"/></span>Épargne</button>
     </div>
