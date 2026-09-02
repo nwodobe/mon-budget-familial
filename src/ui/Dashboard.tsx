@@ -1,128 +1,79 @@
 import { dateLabel, monthLabel } from '../domain/dates'
 import { computeWeek, type MonthSnapshot } from '../domain/engine'
 import { useApp } from '../state/AppContext'
-import { Bar, Card, Empty, Money, Row, useMoneyText } from './common'
+import { Bar, Card, Empty, Icon, Money, Row, StatCard, useMoneyText } from './common'
 
-const DOT: Record<string, string> = { saine: 'ok', attention: 'warn', danger: 'danger' }
 const HEALTH_LABEL: Record<string, string> = {
   saine: 'Situation saine',
   attention: 'À surveiller',
   danger: 'Budget en danger',
 }
 
-export default function Dashboard({ go }: { go: (screen: string) => void }) {
+export default function Dashboard({ go, onAdd }: { go: (screen: string) => void; onAdd: () => void }) {
   const { snapshot: s, ledger, goals, today, month } = useApp()
   const money = useMoneyText()
   const week = computeWeek(ledger, s as unknown as MonthSnapshot, today)
   const nextCharge = s.charges.find((c) => !c.paid)
   const alertEnvelopes = s.envelopes.filter((e) => e.state !== 'sain').slice(0, 3)
+  const hasWatchItems = Boolean(nextCharge?.late || alertEnvelopes.length || s.todayOverBy > 0 || s.deficit > 0)
 
-  return (
-    <>
-      <section className="card hero">
-        <div className="label">Disponible à dépenser</div>
-        <div className="amount">
-          <Money value={s.spendable} currency={false} />
-          <span className="currency">FCFA</span>
-        </div>
-        {s.deficit > 0 ? (
-          <div className="daily">Déficit à couvrir : <strong><Money value={s.deficit} /></strong></div>
-        ) : (
-          <div className="daily">Après charges, épargne et provisions protégées</div>
-        )}
-        <div className="status">
-          <span className={`dot ${DOT[s.health]}`} />
-          {HEALTH_LABEL[s.health]}
-        </div>
-        <div className="status-reason">{s.healthReason}</div>
-      </section>
+  return <>
+    <section className={`hero-card ${s.health === 'danger' ? 'danger' : s.health === 'attention' ? 'warning' : ''}`}>
+      <div className="hero-topline"><span>Disponible à dépenser</span><span className="hero-status"><span className={`dot ${s.health === 'saine' ? 'ok' : s.health === 'attention' ? 'warn' : 'danger'}`} />{HEALTH_LABEL[s.health]}</span></div>
+      <div className="hero-money"><Money value={s.spendable} currency={false} /><span>FCFA</span></div>
+      <p>{s.deficit > 0 ? <>Déficit à couvrir : <strong>{money(s.deficit)}</strong></> : 'Après vos charges, votre épargne et vos provisions protégées.'}</p>
+    </section>
 
-      <Card title="Aujourd'hui">
-        <div className="rows">
-          <Row k="Budget conseillé aujourd'hui" v={<Money value={s.todayBudget} />} />
-          <Row k="Dépensé aujourd'hui" v={<Money value={s.todaySpent} />} tone={s.todayOverBy > 0 ? 'neg' : undefined} />
-          <Row
-            k={s.todayOverBy > 0 ? 'Dépassement aujourd’hui' : 'Vous pouvez encore dépenser aujourd’hui'}
-            v={<Money value={s.todayOverBy > 0 ? s.todayOverBy : s.todayRemaining} />}
-            tone={s.todayOverBy > 0 ? 'neg' : 'pos'}
-          />
-        </div>
-        {s.todayOverBy > 0 && (
-          <div className="banner mt"><span className="dot warn" />Vous avez dépassé votre budget conseillé aujourd'hui de {money(s.todayOverBy)}.</div>
-        )}
+    <section className="today-section">
+      <div className="section-title-row"><div><span className="eyebrow dark">Aujourd'hui</span><h2>Votre marge du jour</h2></div></div>
+      <div className="stats-grid">
+        <StatCard label="Budget" value={<Money value={s.todayBudget} currency={false}/>} />
+        <StatCard label="Dépensé" value={<Money value={s.todaySpent} currency={false}/>} tone={s.todayOverBy > 0 ? 'danger' : 'neutral'} />
+        <StatCard label={s.todayOverBy > 0 ? 'Dépassé' : 'Reste'} value={<Money value={s.todayOverBy > 0 ? s.todayOverBy : s.todayRemaining} currency={false}/>} tone={s.todayOverBy > 0 ? 'danger' : 'positive'} />
+      </div>
+      <div className="stats-currency">Montants en FCFA</div>
+    </section>
+
+    <div className="quick-actions">
+      <button onClick={onAdd}><span><Icon name="plus"/></span>Dépense</button>
+      <button onClick={() => go('revenus')}><span><Icon name="income"/></span>Revenu</button>
+      <button onClick={() => go('epargne')}><span><Icon name="savings"/></span>Épargne</button>
+    </div>
+
+    {hasWatchItems && <Card title="À surveiller" className="watch-card">
+      {s.deficit > 0 && <div className="watch-item danger"><span className="watch-icon"><Icon name="alert" size={19}/></span><div><strong>Déficit à couvrir</strong><small>{money(s.deficit)} manquent pour protéger le mois.</small></div></div>}
+      {s.todayOverBy > 0 && <div className="watch-item warning"><span className="watch-icon"><Icon name="alert" size={19}/></span><div><strong>Budget du jour dépassé</strong><small>Vous avez dépassé le rythme conseillé de {money(s.todayOverBy)}.</small></div></div>}
+      {nextCharge?.late && <div className="watch-item danger"><span className="watch-icon"><Icon name="charges" size={19}/></span><div><strong>{nextCharge.label} est en retard</strong><small>{money(nextCharge.amount)} étaient prévus le {dateLabel(nextCharge.dueDate)}.</small></div></div>}
+      {alertEnvelopes.map((e) => <div className={`watch-item ${e.state === 'depasse' ? 'danger' : 'warning'}`} key={e.id}><span className="watch-icon"><Icon name="wallet" size={19}/></span><div><strong>{e.name} · {e.usedPct}%</strong><small>{e.state === 'depasse' ? `Dépassement de ${money(Math.abs(e.remaining))}.` : `Il reste ${money(e.remaining)} dans cette enveloppe.`}</small></div></div>)}
+    </Card>}
+
+    <Card title={`Vue d'ensemble · ${monthLabel(month)}`}>
+      <div className="rows compact">
+        <Row k="Revenus encaissés" v={<Money value={s.income}/>} tone="pos" />
+        {s.incomeExpected > 0 && <Row k="Revenus à venir" v={<Money value={s.incomeExpected}/>} note="Non comptés dans le Disponible sûr" />}
+        <Row k="Charges restantes" v={<Money value={s.chargesRemaining}/>} />
+        <Row k="Épargne réalisée" v={<Money value={s.savingsDone}/>} tone="pos" />
+      </div>
+    </Card>
+
+    {nextCharge && <Card title="Prochaine charge" action={<button className="text-action" onClick={() => go('charges')}>Voir tout</button>}>
+      <button className="next-charge" onClick={() => go('charges')}><span className="charge-icon"><Icon name="charges"/></span><span className="charge-copy"><strong>{nextCharge.label}</strong><small>Échéance {dateLabel(nextCharge.dueDate)}{nextCharge.late ? ' · en retard' : ''}</small></span><span className="charge-amount"><Money value={nextCharge.amount}/></span><Icon name="chevronRight" size={18}/></button>
+    </Card>}
+
+    <Card title="Enveloppes" action={<button className="text-action" onClick={() => go('budget')}>Gérer</button>}>
+      {s.envelopes.length === 0 ? <Empty text="Créez vos premières enveloppes pour décider où va votre argent." /> : s.envelopes.slice(0, 4).map((e) => <div className="env premium-env" key={e.id}><div className="env-head"><div className="env-name">{e.name}</div><div className={`env-fig ${e.state}`}>{e.usedPct}%</div></div><Bar pct={e.usedPct} state={e.state}/><div className="env-sub"><span><Money value={e.spent}/> dépensés</span><span>{e.remaining >= 0 ? 'Reste ' : 'Dépassement '}<Money value={Math.abs(e.remaining)}/></span></div></div>)}
+    </Card>
+
+    <div className="dashboard-two-col">
+      <Card title="Score de discipline" action={<button className="text-action" onClick={() => go('rapport')}>Détail</button>}>
+        <div className="score-premium"><div className="score-ring"><span>{s.score.measurable ? s.score.value : '--'}</span><small>/100</small></div><div><strong>{s.score.label}</strong><p>{s.score.measurable ? 'Votre discipline financière ce mois-ci.' : 'Ajoutez vos données pour obtenir votre score.'}</p></div></div>
       </Card>
+      <Card title="Cette semaine"><div className="rows compact"><Row k="Dépenses" v={<Money value={week.spent}/>} /><Row k="Rythme prévu" v={<Money value={week.expectedPace}/>} tone={week.gap > 0 ? 'neg' : 'pos'} /></div><div className={`week-verdict ${week.willHold ? 'ok' : 'warn'}`}><Icon name={week.willHold ? 'check' : 'alert'} size={18}/>{week.verdict}</div></Card>
+    </div>
 
-      {s.incomeExpected > 0 && (
-        <Card title="Revenus à venir">
-          <Row k="Encore attendus ce mois" v={<Money value={s.incomeExpected} />} note="Ils ne gonflent pas votre Disponible avant leur date d'encaissement." />
-        </Card>
-      )}
-
-      <Card title={`Situation - ${monthLabel(month)}`}>
-        <div className="rows">
-          <Row k="Revenus encaissés" v={<Money value={s.income} />} tone="pos" />
-          <Row k="Charges restantes" v={<Money value={s.chargesRemaining} />} />
-          <Row k="Épargne déjà réalisée" v={<Money value={s.savingsDone} />} tone="pos" />
-          <Row k="Réserve encore à protéger" v={<Money value={s.protectedReserveRemaining} />} />
-          <Row k="Dépenses enregistrées" v={<Money value={s.spent} />} tone="neg" />
-        </div>
-      </Card>
-
-      {nextCharge && (
-        <Card title="Prochaine charge" action={<button className="btn small ghost" onClick={() => go('charges')}>Voir</button>}>
-          <div className="item">
-            <div className="main">
-              <div className="title">{nextCharge.label}</div>
-              <div className="meta">Échéance {dateLabel(nextCharge.dueDate)}{nextCharge.late ? ' - en retard' : ''}</div>
-            </div>
-            <div className="amt"><Money value={nextCharge.amount} /></div>
-          </div>
-        </Card>
-      )}
-
-      <Card title="Épargne et grosses dépenses" action={<button className="btn small ghost" onClick={() => go('preparer')}>À préparer</button>}>
-        <div className="rows">
-          <Row k="Objectif d'épargne du mois" v={<Money value={s.savingsTarget} />} />
-          <Row k="Provisions encore à constituer ce mois" v={<Money value={s.provisionsReserveRemaining} />} />
-        </div>
-        {s.provisions.length > 0 && (
-          <div className="tiny mt">Prochaine préparation : {s.provisions[0].name} — {money(s.provisions[0].monthlyNeeded)}/mois recommandé.</div>
-        )}
-      </Card>
-
-      <Card title="Enveloppes en alerte" action={<button className="btn small ghost" onClick={() => go('budget')}>Gérer</button>}>
-        {alertEnvelopes.length === 0 ? (
-          <Empty text="Aucune enveloppe en alerte pour le moment." />
-        ) : alertEnvelopes.map((e) => (
-          <div className="env" key={e.id}>
-            <div className="env-head"><div className="env-name"><span className={`dot ${e.state === 'depasse' ? 'danger' : 'warn'}`} />{e.name}</div><div className="env-fig">{e.usedPct} %</div></div>
-            <Bar pct={e.usedPct} state={e.state} />
-          </div>
-        ))}
-      </Card>
-
-      {goals.length > 0 && (
-        <Card title="Objectif principal" action={<button className="btn small ghost" onClick={() => go('objectifs')}>Voir</button>}>
-          <div className="env-head"><div className="env-name">{goals[0].name}</div><div className="env-fig">{goals[0].progressPct} %</div></div>
-          <Bar pct={goals[0].progressPct} />
-          <div className="tiny mt">Effort recommandé : {money(goals[0].monthlyNeeded)}/mois.</div>
-        </Card>
-      )}
-
-      <Card title="Score de discipline" action={<button className="btn small ghost" onClick={() => go('rapport')}>Détail</button>}>
-        <div className="score-head">
-          <div className="score-value">{s.score.measurable ? s.score.value : '--'}</div>
-          <div><div className="score-band">{s.score.label}</div><div className="tiny">{s.score.measurable ? 'sur 100 points' : 'pas encore assez de données'}</div></div>
-        </div>
-      </Card>
-
-      <Card title="Cette semaine">
-        <div className="rows">
-          <Row k="Dépenses de la semaine" v={<Money value={week.spent} />} />
-          <Row k="Rythme prévu" v={<Money value={week.expectedPace} />} note={week.gap > 0 ? `Écart : +${money(week.gap)}` : 'Dans le rythme'} tone={week.gap > 0 ? 'neg' : 'pos'} />
-        </div>
-        <div className="banner mt"><span className={`dot ${week.willHold ? 'ok' : 'warn'}`} />{week.verdict}</div>
-      </Card>
-    </>
-  )
+    {(s.provisions.length > 0 || goals.length > 0) && <Card title="Vos projets">
+      {s.provisions.length > 0 && <button className="project-row" onClick={() => go('preparer')}><span className="menu-icon"><Icon name="prepare"/></span><span><strong>{s.provisions[0].name}</strong><small>{money(s.provisions[0].monthlyNeeded)}/mois recommandé</small></span><Icon name="chevronRight" size={18}/></button>}
+      {goals.length > 0 && <button className="project-row" onClick={() => go('objectifs')}><span className="menu-icon"><Icon name="target"/></span><span><strong>{goals[0].name}</strong><small>{goals[0].progressPct}% atteint</small></span><Icon name="chevronRight" size={18}/></button>}
+    </Card>}
+  </>
 }

@@ -5,9 +5,11 @@ on:
     branches:
       - feature/financial-discipline-v2
       - consolidation/financial-discipline-v2
+      - feature/premium-ui-navigation
   pull_request:
     branches:
       - main
+      - consolidation/financial-discipline-v2
 
 permissions:
   contents: read
@@ -69,7 +71,7 @@ jobs:
       - name: Upload unified debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: mon-budget-familial-v2-debug-apk
+          name: mon-budget-familial-premium-ui-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
