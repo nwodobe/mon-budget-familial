@@ -1,0 +1,78 @@
+name: Financial Discipline V2 CI
+
+on:
+  push:
+    branches:
+      - main
+      - feature/financial-discipline-v2
+      - consolidation/financial-discipline-v2
+      - feature/premium-ui-navigation
+  pull_request:
+    branches:
+      - main
+      - consolidation/financial-discipline-v2
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Tests including financial E2E
+        run: npm test
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Production web build for GitHub Pages
+        run: APP_BASE=/mon-budget-familial/ npm run build
+
+      - name: Reject leaked Windows paths
+        run: |
+          if grep -R -E '(/Users/User/AppData|[A-Za-z]:\\\\Users\\\\)' dist; then
+            echo 'Local Windows path leaked into web build.'
+            exit 1
+          fi
+
+      - name: Native web bundle
+        run: npm run build
+
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      - name: Build Android debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew clean assembleDebug
+
+      - name: Verify APK exists
+        run: test -s android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload unified debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mon-budget-familial-premium-ui-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14

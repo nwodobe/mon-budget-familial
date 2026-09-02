@@ -11,12 +11,11 @@ import {
 import { currentMonth, todayIso } from '../domain/dates'
 import {
   computeGoals,
-  computeMonth,
   computePockets,
   type GoalStatus,
-  type MonthSnapshot,
   type PocketBalance,
 } from '../domain/engine'
+import { computeMonthV2, type DisciplineSnapshot } from '../domain/disciplineV2'
 import type { CollectionName, Ledger, Settings } from '../domain/types'
 import {
   loadLedger,
@@ -37,7 +36,7 @@ interface AppState {
   meta: SyncMeta
   month: string
   today: string
-  snapshot: MonthSnapshot
+  snapshot: DisciplineSnapshot
   goals: GoalStatus[]
   pockets: PocketBalance[]
   hideAmounts: boolean
@@ -60,7 +59,6 @@ interface AppState {
 }
 
 const Ctx = createContext<AppState | null>(null)
-
 const HIDE_KEY = 'mbf.hide.v1'
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -68,9 +66,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [meta, setMeta] = useState<SyncMeta>(() => loadMeta())
   const [month, setMonth] = useState<string>(() => currentMonth())
   const [today, setToday] = useState<string>(() => todayIso())
-  const [hideAmounts, setHideAmountsState] = useState<boolean>(
-    () => localStorage.getItem(HIDE_KEY) === '1',
-  )
+  const [hideAmounts, setHideAmountsState] = useState<boolean>(() => localStorage.getItem(HIDE_KEY) === '1')
   const [online, setOnline] = useState<boolean>(() => navigator.onLine)
   const [syncing, setSyncing] = useState(false)
   const [lastSync, setLastSync] = useState<SyncResult | null>(null)
@@ -80,7 +76,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => saveLedger(ledger), [ledger])
   useEffect(() => saveMeta(meta), [meta])
 
-  // La date de reference doit suivre le passage de minuit sans rechargement.
   useEffect(() => {
     const t = setInterval(() => {
       const d = todayIso()
@@ -114,15 +109,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const runSync = useCallback(async (): Promise<SyncResult> => {
-    if (pendingSync.current) {
-      return { ok: false, pushed: 0, pulled: 0, message: 'Synchronisation deja en cours.' }
-    }
+    if (pendingSync.current) return { ok: false, pushed: 0, pulled: 0, message: 'Synchronisation deja en cours.' }
     pendingSync.current = true
     setSyncing(true)
     try {
-      const current = loadLedger()
-      const currentMeta = loadMeta()
-      const out = await synchronize(current, currentMeta)
+      const out = await synchronize(loadLedger(), loadMeta())
       setLedger(out.ledger)
       setMeta(out.meta)
       setLastSync(out.result)
@@ -133,7 +124,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  // Reprise automatique au retour d'Internet, une seule fois par transition.
   useEffect(() => {
     if (online && session && isCloudConfigured) void runSync()
   }, [online, session, runSync])
@@ -171,7 +161,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const replaceLedger = useCallback((l: Ledger) => setLedger(l), [])
-
   const setHideAmounts = useCallback((v: boolean) => {
     setHideAmountsState(v)
     localStorage.setItem(HIDE_KEY, v ? '1' : '0')
@@ -193,39 +182,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = useCallback(async () => {
-    // Portee locale : ne pas revoquer la session des autres appareils.
     if (supabase) await supabase.auth.signOut({ scope: 'local' })
     setSession(null)
   }, [])
 
-  const snapshot = useMemo(() => computeMonth(ledger, month, today), [ledger, month, today])
+  const snapshot = useMemo(() => computeMonthV2(ledger, month, today), [ledger, month, today])
   const goals = useMemo(() => computeGoals(ledger, today), [ledger, today])
   const pockets = useMemo(() => computePockets(ledger, today), [ledger, today])
 
   const value: AppState = {
-    ledger,
-    meta,
-    month,
-    today,
-    snapshot,
-    goals,
-    pockets,
-    hideAmounts,
-    online,
-    syncing,
-    lastSync,
-    session,
-    setMonth,
-    setHideAmounts,
-    create,
-    update,
-    remove,
-    updateSettings,
-    replaceLedger,
-    runSync,
-    signIn,
-    signUp,
-    signOut,
+    ledger, meta, month, today, snapshot, goals, pockets, hideAmounts, online, syncing, lastSync, session,
+    setMonth, setHideAmounts, create, update, remove, updateSettings, replaceLedger, runSync, signIn, signUp, signOut,
   }
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>

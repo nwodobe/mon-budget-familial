@@ -1,0 +1,61 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: github-pages-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test and typecheck
+        run: |
+          npm test
+          npm run typecheck
+
+      - name: Build for GitHub Pages
+        run: APP_BASE=/mon-budget-familial/ npm run build
+
+      - name: Validate public paths
+        run: |
+          if grep -R -E '(/Users/User/AppData|[A-Za-z]:\\\\Users\\\\)' dist; then
+            echo 'Local Windows path leaked into web build.'
+            exit 1
+          fi
+          grep -q '/mon-budget-familial/' dist/index.html
+
+      - name: Prepare SPA fallback
+        run: |
+          cp dist/index.html dist/404.html
+          touch dist/.nojekyll
+
+      - name: Publish gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: gh-pages
+          force_orphan: true
+          commit_message: 'Deploy unified Mon Budget Familial'
