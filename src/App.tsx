@@ -8,6 +8,7 @@ import Budget from './ui/Budget'
 import Charges from './ui/Charges'
 import Connexion from './ui/Connexion'
 import Dashboard from './ui/Dashboard'
+import DeleteAccount from './ui/DeleteAccount'
 import Epargne from './ui/Epargne'
 import Historique from './ui/Historique'
 import Objectifs from './ui/Objectifs'
@@ -32,6 +33,7 @@ const TITLES: Record<string, string> = {
   preparer: 'À préparer',
   rapport: 'Rapports',
   connexion: 'Compte',
+  suppression: 'Supprimer mon compte',
 }
 
 const DERNIER_MOIS_CONSULTABLE = shiftMonth(currentMonth(), 12)
@@ -100,7 +102,7 @@ export default function App() {
   if (locked) return <Verrou onUnlock={() => setLocked(false)} />
 
   const isEmpty = ledger.incomes.every((i) => i.deleted_at !== null) && ledger.envelopes.every((e) => e.deleted_at !== null) && ledger.charges.every((c) => c.deleted_at !== null)
-  const showMonth = !['profil', 'connexion', 'plus'].includes(screen)
+  const showMonth = !['profil', 'connexion', 'plus', 'suppression'].includes(screen)
   const connectedLabel = !online ? 'Hors connexion' : session ? 'Synchronisé' : isCloudConfigured ? 'Non connecté' : 'Local uniquement'
 
   return (
@@ -140,8 +142,9 @@ export default function App() {
         {screen === 'preparer' && <Provisions />}
         {screen === 'rapport' && <Rapport />}
         {screen === 'connexion' && <Connexion onDone={() => navigate('plus')} />}
+        {screen === 'suppression' && <DeleteAccount onDone={() => navigate('plus')} />}
 
-        {!PRIMARY.has(screen) && !['connexion'].includes(screen) && <button className="btn ghost back-link" onClick={() => navigate('plus')}>Retour au menu</button>}
+        {!PRIMARY.has(screen) && !['connexion', 'suppression'].includes(screen) && <button className="btn ghost back-link" onClick={() => navigate('plus')}>Retour au menu</button>}
       </main>
 
       <nav className="tabbar" aria-label="Navigation principale">

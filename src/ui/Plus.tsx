@@ -2,6 +2,8 @@ import { isCloudConfigured } from '../data/supabase'
 import { useApp } from '../state/AppContext'
 import { Card, MenuItem } from './common'
 
+const PRIVACY_URL = 'https://nwodobe.github.io/mon-budget-familial/privacy.html'
+
 export default function Plus({ go }: { go: (screen: string) => void }) {
   const { session, online } = useApp()
 
@@ -29,6 +31,8 @@ export default function Plus({ go }: { go: (screen: string) => void }) {
         />
         <MenuItem icon="shield" title="Sécurité" subtitle="Code PIN et confidentialité" onClick={() => go('profil')} />
         <MenuItem icon="backup" title="Sauvegarde" subtitle="Exporter ou restaurer les données" onClick={() => go('profil')} />
+        <MenuItem icon="shield" title="Politique de confidentialité" subtitle="Données, sécurité et droits utilisateur" onClick={() => window.open(PRIVACY_URL, '_blank', 'noopener,noreferrer')} />
+        {session && <MenuItem icon="alert" title="Supprimer mon compte" subtitle="Effacer définitivement le compte et les données cloud" onClick={() => go('suppression')} />}
       </Card>
 
       <div className="app-version">Mon Budget Familial · Discipline Financière V2</div>
