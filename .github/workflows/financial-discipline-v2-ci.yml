@@ -3,6 +3,7 @@ name: Financial Discipline V2 CI
 on:
   push:
     branches:
+      - main
       - feature/financial-discipline-v2
       - consolidation/financial-discipline-v2
       - feature/premium-ui-navigation
