@@ -1,3 +1,4 @@
+import { isCurrencyCode } from '../domain/currency'
 import { COLLECTIONS, type CollectionName, type Ledger } from '../domain/types'
 import { changesSince, mergeCollection, nowIso, type SyncMeta } from './storage'
 import { supabase } from './supabase'
@@ -96,6 +97,7 @@ export async function synchronize(
       .eq('user_id', user.id)
       .maybeSingle()
     if (remoteSettings && String(remoteSettings.updated_at) > next.settings.updated_at) {
+      const remoteCurrency = String(remoteSettings.currency ?? 'XOF')
       next = {
         ...next,
         settings: {
@@ -103,6 +105,7 @@ export async function synchronize(
           warn_threshold_pct: Number(remoteSettings.warn_threshold_pct),
           household_name: String(remoteSettings.household_name),
           members: (remoteSettings.members as string[]) ?? ['Moi'],
+          currency: isCurrencyCode(remoteCurrency) ? remoteCurrency : 'XOF',
           updated_at: String(remoteSettings.updated_at),
         },
       }
