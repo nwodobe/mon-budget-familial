@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { monthLabel, shiftMonth, currentMonth } from './domain/dates'
+import { getPremiumEntitlement, premiumGateEnabled } from './data/entitlement'
 import { pinIsSet } from './data/pin'
 import { isCloudConfigured } from './data/supabase'
 import { useApp } from './state/AppContext'
@@ -13,6 +14,7 @@ import Epargne from './ui/Epargne'
 import Historique from './ui/Historique'
 import Objectifs from './ui/Objectifs'
 import Plus from './ui/Plus'
+import Premium from './ui/Premium'
 import Profil from './ui/Profil'
 import Provisions from './ui/Provisions'
 import Rapport from './ui/Rapport'
@@ -25,6 +27,7 @@ const TITLES: Record<string, string> = {
   budget: 'Budget',
   historique: 'Activité',
   plus: 'Plus',
+  premium: 'Premium',
   objectifs: 'Objectifs',
   profil: 'Foyer et préférences',
   revenus: 'Revenus',
@@ -37,6 +40,7 @@ const TITLES: Record<string, string> = {
 }
 
 const DERNIER_MOIS_CONSULTABLE = shiftMonth(currentMonth(), 12)
+const PREMIUM_SCREENS = new Set(['objectifs', 'preparer', 'rapport'])
 
 const TABS: { key: string; label: string; icon: IconName }[] = [
   { key: 'accueil', label: 'Accueil', icon: 'home' },
@@ -58,6 +62,7 @@ export default function App() {
   const [screen, setScreen] = useState(() => sessionStorage.getItem('mbf_screen') || 'accueil')
   const [adding, setAdding] = useState(false)
   const [locked, setLocked] = useState(() => pinIsSet())
+  const [premiumActive, setPremiumActive] = useState(() => !premiumGateEnabled())
 
   useEffect(() => {
     sessionStorage.setItem('mbf_screen', screen)
@@ -68,7 +73,23 @@ export default function App() {
     if (!state?.screen) window.history.replaceState({ screen }, '', window.location.href)
   }, [])
 
-  function navigate(next: string) {
+  useEffect(() => {
+    let alive = true
+    const refresh = () => {
+      void getPremiumEntitlement().then((entitlement) => {
+        if (alive) setPremiumActive(entitlement.active)
+      })
+    }
+    refresh()
+    window.addEventListener('mbf-premium-changed', refresh)
+    return () => {
+      alive = false
+      window.removeEventListener('mbf-premium-changed', refresh)
+    }
+  }, [session?.id, online])
+
+  function navigate(requested: string) {
+    const next = premiumGateEnabled() && PREMIUM_SCREENS.has(requested) && !premiumActive ? 'premium' : requested
     if (next === screen) return
     window.history.pushState({ screen: next }, '', window.location.href)
     setScreen(next)
@@ -93,16 +114,17 @@ export default function App() {
     const onPop = (event: PopStateEvent) => {
       const state = event.state as NavigationState | null
       if (adding) setAdding(false)
-      setScreen(state?.screen || 'accueil')
+      const requested = state?.screen || 'accueil'
+      setScreen(premiumGateEnabled() && PREMIUM_SCREENS.has(requested) && !premiumActive ? 'premium' : requested)
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
-  }, [adding])
+  }, [adding, premiumActive])
 
   if (locked) return <Verrou onUnlock={() => setLocked(false)} />
 
   const isEmpty = ledger.incomes.every((i) => i.deleted_at !== null) && ledger.envelopes.every((e) => e.deleted_at !== null) && ledger.charges.every((c) => c.deleted_at !== null)
-  const showMonth = !['profil', 'connexion', 'plus', 'suppression'].includes(screen)
+  const showMonth = !['profil', 'connexion', 'plus', 'premium', 'suppression'].includes(screen)
   const connectedLabel = !online ? 'Hors connexion' : session ? 'Synchronisé' : isCloudConfigured ? 'Non connecté' : 'Local uniquement'
 
   return (
@@ -134,6 +156,7 @@ export default function App() {
         {screen === 'budget' && <Budget />}
         {screen === 'historique' && <Historique />}
         {screen === 'plus' && <Plus go={navigate} />}
+        {screen === 'premium' && <Premium go={navigate} />}
         {screen === 'objectifs' && <Objectifs />}
         {screen === 'profil' && <Profil go={navigate} />}
         {screen === 'revenus' && <Revenus />}
