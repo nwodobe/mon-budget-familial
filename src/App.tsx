@@ -86,7 +86,7 @@ export default function App() {
       alive = false
       window.removeEventListener('mbf-premium-changed', refresh)
     }
-  }, [session?.user.id, online])
+  }, [session?.id, online])
 
   function navigate(requested: string) {
     const next = premiumGateEnabled() && PREMIUM_SCREENS.has(requested) && !premiumActive ? 'premium' : requested
