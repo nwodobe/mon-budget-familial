@@ -1,6 +1,7 @@
 import { monthLabel } from '../domain/dates'
 import { computeMonthlyReport } from '../domain/engine'
 import { computeMonthV2, formatInt } from '../domain/disciplineV2'
+import { formatMoney } from '../domain/currency'
 import type { IsoMonth, Ledger } from '../domain/types'
 
 /** Exports locaux : rien ne transite par un serveur. */
@@ -17,7 +18,7 @@ export function expensesToCsv(ledger: Ledger, month: IsoMonth): string {
   const chargeLabel = (id: string | null) =>
     id ? (ledger.charges.find((c) => c.id === id)?.label ?? '') : ''
 
-  const header = ['Date', 'Montant FCFA', 'Enveloppe', 'Charge réglée', 'Moyen', 'Personne', 'Description', 'Justification', 'Alertes discipline']
+  const header = ['Date', `Montant ${ledger.settings.currency}`, 'Enveloppe', 'Charge réglée', 'Moyen', 'Personne', 'Description', 'Justification', 'Alertes discipline']
   const lines = ledger.expenses
     .filter((e) => e.deleted_at === null && e.date.slice(0, 7) === month)
     .sort((a, b) => a.date.localeCompare(b.date))
@@ -47,29 +48,31 @@ export function monthlyReportToText(
 ): string {
   const legacy = computeMonthlyReport(ledger, month, previous, reference)
   const s = computeMonthV2(ledger, month, reference)
+  const money = (value: number) => formatMoney(value, ledger.settings.currency)
   const savingsRate = s.income > 0 ? Math.round((s.savingsDone / s.income) * 100) : 0
   const lines = [
     `RAPPORT MENSUEL - ${monthLabel(month).toUpperCase()}`,
     `Foyer : ${ledger.settings.household_name}`,
+    `Devise : ${ledger.settings.currency}`,
     '',
-    `Revenus encaissés       ${formatInt(s.income)} FCFA`,
-    `Revenus encore attendus ${formatInt(s.incomeExpected)} FCFA`,
-    `Charges obligatoires    ${formatInt(s.chargesDue)} FCFA`,
-    `Dépenses totales        ${formatInt(s.spent)} FCFA`,
-    `Épargne                 ${formatInt(s.savingsDone)} FCFA`,
+    `Revenus encaissés       ${money(s.income)}`,
+    `Revenus encore attendus ${money(s.incomeExpected)}`,
+    `Charges obligatoires    ${money(s.chargesDue)}`,
+    `Dépenses totales        ${money(s.spent)}`,
+    `Épargne                 ${money(s.savingsDone)}`,
     `Taux d'épargne          ${savingsRate} %`,
-    `Disponible sûr          ${formatInt(s.spendable)} FCFA`,
-    `Déficit à couvrir       ${formatInt(s.deficit)} FCFA`,
+    `Disponible sûr          ${money(s.spendable)}`,
+    `Déficit à couvrir       ${money(s.deficit)}`,
     `Score de discipline     ${s.score.measurable ? `${s.score.value}/100 (${s.score.label})` : 'non mesurable'}`,
     '',
     'ENVELOPPES',
     ...s.envelopes.map(
-      (e) => `  ${e.name.padEnd(22)} prévu ${formatInt(e.planned)} / dépensé ${formatInt(e.spent)} / reste ${formatInt(e.remaining)}`,
+      (e) => `  ${e.name.padEnd(22)} prévu ${money(e.planned)} / dépensé ${money(e.spent)} / reste ${money(e.remaining)}`,
     ),
     '',
     'À PRÉPARER',
     ...(s.provisions.length > 0
-      ? s.provisions.map((p) => `  ${p.name.padEnd(22)} cible ${formatInt(p.target)} / acquis ${formatInt(p.funded)} / recommandé ${formatInt(p.monthlyNeeded)}/mois`)
+      ? s.provisions.map((p) => `  ${p.name.padEnd(22)} cible ${money(p.target)} / acquis ${money(p.funded)} / recommandé ${money(p.monthlyNeeded)}/mois`)
       : ['  Aucune provision active.']),
     '',
     'DÉTAIL DU SCORE',
@@ -79,7 +82,7 @@ export function monthlyReportToText(
     '',
     'CONCLUSION',
     `  ${s.healthReason}`,
-    legacy.previous ? `  Mois précédent : taux d'épargne ${legacy.previous.savingsRatePct} %, dépenses ${formatInt(legacy.previous.expenses)} FCFA.` : '',
+    legacy.previous ? `  Mois précédent : taux d'épargne ${legacy.previous.savingsRatePct} %, dépenses ${money(legacy.previous.expenses)}.` : '',
   ].filter((line) => line !== '')
   return lines.join('\r\n')
 }
