@@ -1,3 +1,5 @@
+import type { CurrencyCode } from './currency'
+
 export type IsoDate = string
 export type IsoMonth = string
 
@@ -108,6 +110,7 @@ export interface Settings {
   warn_threshold_pct: number
   household_name: string
   members: string[]
+  currency: CurrencyCode
   updated_at: string
 }
 
@@ -116,6 +119,7 @@ export const DEFAULT_SETTINGS: Settings = {
   warn_threshold_pct: 80,
   household_name: 'Ma famille',
   members: ['Moi'],
+  currency: 'XOF',
   updated_at: '1970-01-01T00:00:00.000Z',
 }
 
