@@ -28,9 +28,8 @@ type RestoreResult = { purchases: PurchaseResult[] }
 
 interface PlayBillingPlugin {
   getProducts(options: { productIds: string[] }): Promise<{ products: PlayProduct[] }>
-  purchase(options: { productId: string; offerToken?: string }): Promise<PurchaseResult>
+  purchase(options: { productId: string; offerToken?: string; obfuscatedAccountId: string }): Promise<PurchaseResult>
   restore(): Promise<RestoreResult>
-  acknowledge(options: { purchaseToken: string }): Promise<void>
 }
 
 const PlayBilling = registerPlugin<PlayBillingPlugin>('PlayBilling')
@@ -47,32 +46,47 @@ export async function loadPlayProducts(): Promise<PlayProduct[]> {
 
 export async function buyPlayProduct(product: PlayProduct): Promise<PurchaseResult> {
   if (!billingAvailable()) throw new Error('Google Play Billing est disponible uniquement dans l’application Android.')
-  const purchase = await PlayBilling.purchase({ productId: product.productId, offerToken: product.offerToken })
-  await verifyAndAcknowledge(purchase)
+  const userId = await requireUserId()
+  const purchase = await PlayBilling.purchase({
+    productId: product.productId,
+    offerToken: product.offerToken,
+    obfuscatedAccountId: await sha256(userId),
+  })
+  await verifyPurchase(purchase)
   return purchase
 }
 
 export async function restorePlayPurchases(): Promise<number> {
   if (!billingAvailable()) return 0
+  await requireUserId()
   const { purchases } = await PlayBilling.restore()
   let restored = 0
   for (const purchase of purchases) {
-    await verifyAndAcknowledge(purchase)
+    await verifyPurchase(purchase)
     restored += 1
   }
   return restored
 }
 
-async function verifyAndAcknowledge(purchase: PurchaseResult): Promise<void> {
+async function requireUserId(): Promise<string> {
   if (!supabase) throw new Error('La sauvegarde cloud doit être configurée pour activer Premium.')
-  const { data: sessionData } = await supabase.auth.getSession()
-  if (!sessionData.session) throw new Error('Connectez-vous à votre compte avant d’activer Premium.')
+  const { data } = await supabase.auth.getSession()
+  const id = data.session?.user.id
+  if (!id) throw new Error('Connectez-vous à votre compte avant d’activer Premium.')
+  return id
+}
 
+async function verifyPurchase(purchase: PurchaseResult): Promise<void> {
+  if (!supabase) throw new Error('La sauvegarde cloud doit être configurée pour activer Premium.')
   const { data, error } = await supabase.functions.invoke('verify-play-purchase', {
     body: { productId: purchase.productId, purchaseToken: purchase.purchaseToken },
   })
   if (error) throw new Error(error.message || 'Impossible de vérifier l’achat Google Play.')
   if (!data?.entitled) throw new Error('L’achat n’a pas encore été validé par Google Play.')
+}
 
-  if (!purchase.acknowledged) await PlayBilling.acknowledge({ purchaseToken: purchase.purchaseToken })
+async function sha256(value: string): Promise<string> {
+  const bytes = new TextEncoder().encode(value)
+  const digest = await crypto.subtle.digest('SHA-256', bytes)
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('')
 }
