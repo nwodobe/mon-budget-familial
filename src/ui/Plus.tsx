@@ -9,6 +9,10 @@ export default function Plus({ go }: { go: (screen: string) => void }) {
 
   return (
     <div className="more-page">
+      <Card title="Premium" className="menu-card premium-menu-card">
+        <MenuItem icon="target" title="Mon Budget Familial Premium" subtitle="1 500 FCFA/mois ou 12 000 FCFA/an" onClick={() => go('premium')} />
+      </Card>
+
       <Card title="Planifier" className="menu-card">
         <MenuItem icon="income" title="Revenus" subtitle="Salaire et autres entrées" onClick={() => go('revenus')} />
         <MenuItem icon="charges" title="Charges" subtitle="Loyer, factures et échéances" onClick={() => go('charges')} />
