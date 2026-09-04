@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { formatInt } from '../domain/engine'
+import { currencyMeta, formatMoney } from '../domain/currency'
 import { useApp } from '../state/AppContext'
 
 export type IconName =
@@ -40,14 +41,16 @@ export function Icon({ name, size = 22, className = '' }: { name: IconName; size
 }
 
 export function Money({ value, currency = true }: { value: number; currency?: boolean }) {
-  const { hideAmounts } = useApp()
-  if (hideAmounts) return <span>{currency ? '••• FCFA' : '•••'}</span>
-  return <span>{formatInt(value)}{currency ? ' FCFA' : ''}</span>
+  const { hideAmounts, ledger } = useApp()
+  const code = ledger.settings.currency
+  if (hideAmounts) return <span>{currency ? `••• ${currencyMeta(code).symbol}` : '•••'}</span>
+  return <span>{currency ? formatMoney(value, code) : formatInt(value)}</span>
 }
 
 export function useMoneyText(): (value: number, currency?: boolean) => string {
-  const { hideAmounts } = useApp()
-  return (value, currency = true) => hideAmounts ? (currency ? '••• FCFA' : '•••') : formatInt(value) + (currency ? ' FCFA' : '')
+  const { hideAmounts, ledger } = useApp()
+  const code = ledger.settings.currency
+  return (value, currency = true) => hideAmounts ? (currency ? `••• ${currencyMeta(code).symbol}` : '•••') : currency ? formatMoney(value, code) : formatInt(value)
 }
 
 export function Card({ title, children, action, className = '' }: { title?: string; children: ReactNode; action?: ReactNode; className?: string }) {
