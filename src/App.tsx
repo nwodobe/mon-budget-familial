@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { monthLabel, shiftMonth, currentMonth } from './domain/dates'
+import { getPremiumEntitlement, premiumGateEnabled } from './data/entitlement'
 import { pinIsSet } from './data/pin'
 import { isCloudConfigured } from './data/supabase'
 import { useApp } from './state/AppContext'
@@ -39,6 +40,7 @@ const TITLES: Record<string, string> = {
 }
 
 const DERNIER_MOIS_CONSULTABLE = shiftMonth(currentMonth(), 12)
+const PREMIUM_SCREENS = new Set(['objectifs', 'preparer', 'rapport'])
 
 const TABS: { key: string; label: string; icon: IconName }[] = [
   { key: 'accueil', label: 'Accueil', icon: 'home' },
@@ -60,6 +62,7 @@ export default function App() {
   const [screen, setScreen] = useState(() => sessionStorage.getItem('mbf_screen') || 'accueil')
   const [adding, setAdding] = useState(false)
   const [locked, setLocked] = useState(() => pinIsSet())
+  const [premiumActive, setPremiumActive] = useState(() => !premiumGateEnabled())
 
   useEffect(() => {
     sessionStorage.setItem('mbf_screen', screen)
@@ -70,7 +73,23 @@ export default function App() {
     if (!state?.screen) window.history.replaceState({ screen }, '', window.location.href)
   }, [])
 
-  function navigate(next: string) {
+  useEffect(() => {
+    let alive = true
+    const refresh = () => {
+      void getPremiumEntitlement().then((entitlement) => {
+        if (alive) setPremiumActive(entitlement.active)
+      })
+    }
+    refresh()
+    window.addEventListener('mbf-premium-changed', refresh)
+    return () => {
+      alive = false
+      window.removeEventListener('mbf-premium-changed', refresh)
+    }
+  }, [session?.user.id, online])
+
+  function navigate(requested: string) {
+    const next = premiumGateEnabled() && PREMIUM_SCREENS.has(requested) && !premiumActive ? 'premium' : requested
     if (next === screen) return
     window.history.pushState({ screen: next }, '', window.location.href)
     setScreen(next)
@@ -95,11 +114,12 @@ export default function App() {
     const onPop = (event: PopStateEvent) => {
       const state = event.state as NavigationState | null
       if (adding) setAdding(false)
-      setScreen(state?.screen || 'accueil')
+      const requested = state?.screen || 'accueil'
+      setScreen(premiumGateEnabled() && PREMIUM_SCREENS.has(requested) && !premiumActive ? 'premium' : requested)
     }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
-  }, [adding])
+  }, [adding, premiumActive])
 
   if (locked) return <Verrou onUnlock={() => setLocked(false)} />
 
