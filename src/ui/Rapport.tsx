@@ -1,8 +1,10 @@
 import { monthLabel, shiftMonth } from '../domain/dates'
+import { monthlyTrends } from '../domain/analytics'
 import { computeMonthlyReport, computeWeek, type MonthSnapshot } from '../domain/engine'
 import { download, monthlyReportToText, expensesToCsv } from '../data/exporter'
 import { useApp } from '../state/AppContext'
 import { Bar, Card, Empty, Money, Row } from './common'
+import { MonthlyBars } from './visuals'
 
 export default function Rapport() {
   const { ledger, snapshot, month, today } = useApp()
@@ -10,6 +12,7 @@ export default function Rapport() {
   const legacyReport = computeMonthlyReport(ledger, month, previous, today)
   const week = computeWeek(ledger, snapshot as unknown as MonthSnapshot, today)
   const savingsRatePct = snapshot.income > 0 ? Math.round((snapshot.savingsDone / snapshot.income) * 100) : 0
+  const trends = monthlyTrends(ledger, month, 6)
 
   return (
     <>
@@ -33,6 +36,10 @@ export default function Rapport() {
             <div className="tiny mt">Conseil : {c.advice}</div>
           </div>
         ))}
+      </Card>
+
+      <Card title="Mes 6 derniers mois">
+        <MonthlyBars rows={trends} />
       </Card>
 
       <Card title="Rapport de la semaine">
