@@ -44,6 +44,7 @@ export default function Premium({ go }: { go: (screen: string) => void }) {
     setMessage('')
     try {
       await buyPlayProduct(product)
+      window.dispatchEvent(new Event('mbf-premium-changed'))
       setMessage('Premium est activé sur votre compte.')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Achat interrompu.')
@@ -58,6 +59,7 @@ export default function Premium({ go }: { go: (screen: string) => void }) {
     setMessage('')
     try {
       const count = await restorePlayPurchases()
+      if (count > 0) window.dispatchEvent(new Event('mbf-premium-changed'))
       setMessage(count > 0 ? 'Vos achats Google Play ont été restaurés.' : 'Aucun abonnement actif à restaurer.')
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Restauration impossible.')
@@ -83,23 +85,8 @@ export default function Premium({ go }: { go: (screen: string) => void }) {
       </Card>
 
       <div className="premium-plans">
-        <Plan
-          title="Mensuel"
-          price={byId.get(PLAY_PRODUCTS.monthly)?.formattedPrice || FALLBACK_PRICES[PLAY_PRODUCTS.monthly]}
-          note="Sans engagement long terme"
-          disabled={!native || loading || busy !== null || !session}
-          busy={busy === PLAY_PRODUCTS.monthly}
-          onClick={() => void subscribe(PLAY_PRODUCTS.monthly)}
-        />
-        <Plan
-          title="Annuel"
-          price={byId.get(PLAY_PRODUCTS.annual)?.formattedPrice || FALLBACK_PRICES[PLAY_PRODUCTS.annual]}
-          note="Économisez 6 000 FCFA par rapport au mensuel"
-          badge="RECOMMANDÉ"
-          disabled={!native || loading || busy !== null || !session}
-          busy={busy === PLAY_PRODUCTS.annual}
-          onClick={() => void subscribe(PLAY_PRODUCTS.annual)}
-        />
+        <Plan title="Mensuel" price={byId.get(PLAY_PRODUCTS.monthly)?.formattedPrice || FALLBACK_PRICES[PLAY_PRODUCTS.monthly]} note="Sans engagement long terme" disabled={!native || loading || busy !== null || !session} busy={busy === PLAY_PRODUCTS.monthly} onClick={() => void subscribe(PLAY_PRODUCTS.monthly)} />
+        <Plan title="Annuel" price={byId.get(PLAY_PRODUCTS.annual)?.formattedPrice || FALLBACK_PRICES[PLAY_PRODUCTS.annual]} note="Économisez 6 000 FCFA par rapport au mensuel" badge="RECOMMANDÉ" disabled={!native || loading || busy !== null || !session} busy={busy === PLAY_PRODUCTS.annual} onClick={() => void subscribe(PLAY_PRODUCTS.annual)} />
       </div>
 
       {!session && <div className="banner warn">Connectez-vous d’abord à votre compte pour que Premium puisse être restauré sur un nouvel appareil.</div>}
@@ -107,9 +94,7 @@ export default function Premium({ go }: { go: (screen: string) => void }) {
       {error && <div className="banner err">{error}</div>}
       {message && <div className="banner">{message}</div>}
 
-      <button className="btn" disabled={!native || busy !== null} onClick={() => void restore()}>
-        {busy === 'restore' ? 'Restauration…' : 'Restaurer mes achats'}
-      </button>
+      <button className="btn" disabled={!native || busy !== null} onClick={() => void restore()}>{busy === 'restore' ? 'Restauration…' : 'Restaurer mes achats'}</button>
       {!session && <button className="btn ghost mt" onClick={() => go('connexion')}>Se connecter</button>}
       <p className="tiny mt">Le paiement est traité par Google Play. L’accès Premium est accordé uniquement après validation de l’achat côté serveur.</p>
     </div>
