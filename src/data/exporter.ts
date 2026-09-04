@@ -1,6 +1,6 @@
 import { monthLabel } from '../domain/dates'
 import { computeMonthlyReport } from '../domain/engine'
-import { computeMonthV2, formatInt } from '../domain/disciplineV2'
+import { computeMonthV2 } from '../domain/disciplineV2'
 import { formatMoney } from '../domain/currency'
 import type { IsoMonth, Ledger } from '../domain/types'
 
