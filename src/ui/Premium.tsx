@@ -1,16 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { billingAvailable, buyPlayProduct, loadPlayProducts, PLAY_PRODUCTS, restorePlayPurchases, type PlayProduct } from '../data/playBilling'
+import { useI18n } from '../i18n'
 import { useApp } from '../state/AppContext'
 import { Card } from './common'
-
-const FALLBACK_PRICES: Record<string, string> = {
-  [PLAY_PRODUCTS.monthly]: '1 500 FCFA / mois',
-  [PLAY_PRODUCTS.annual]: '12 000 FCFA / an',
-}
 
 const PLAY_SUBSCRIPTIONS_URL = 'https://play.google.com/store/account/subscriptions'
 
 export default function Premium({ go }: { go: (screen: string) => void }) {
+  const { t } = useI18n()
   const { session } = useApp()
   const [products, setProducts] = useState<PlayProduct[]>([])
   const [loading, setLoading] = useState(true)
@@ -25,20 +22,20 @@ export default function Premium({ go }: { go: (screen: string) => void }) {
         const loaded = await loadPlayProducts()
         if (alive) setProducts(loaded)
       } catch (e) {
-        if (alive) setError(e instanceof Error ? e.message : 'Impossible de charger les offres Google Play.')
+        if (alive) setError(e instanceof Error ? e.message : t('premium.loadError'))
       } finally {
         if (alive) setLoading(false)
       }
     })()
     return () => { alive = false }
-  }, [])
+  }, [t])
 
   const byId = useMemo(() => new Map(products.map((p) => [p.productId, p])), [products])
 
   async function subscribe(productId: string) {
     const product = byId.get(productId)
     if (!product) {
-      setError('Cette offre n’est pas encore disponible sur Google Play.')
+      setError(t('premium.notAvailable'))
       return
     }
     setBusy(productId)
@@ -47,9 +44,9 @@ export default function Premium({ go }: { go: (screen: string) => void }) {
     try {
       await buyPlayProduct(product)
       window.dispatchEvent(new Event('mbf-premium-changed'))
-      setMessage('Premium est activé sur votre compte.')
+      setMessage(t('premium.activated'))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Achat interrompu.')
+      setError(e instanceof Error ? e.message : t('premium.purchaseInterrupted'))
     } finally {
       setBusy(null)
     }
@@ -62,58 +59,61 @@ export default function Premium({ go }: { go: (screen: string) => void }) {
     try {
       const count = await restorePlayPurchases()
       if (count > 0) window.dispatchEvent(new Event('mbf-premium-changed'))
-      setMessage(count > 0 ? 'Vos achats Google Play ont été restaurés.' : 'Aucun abonnement actif à restaurer.')
+      setMessage(count > 0 ? t('premium.restored') : t('premium.noneToRestore'))
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Restauration impossible.')
+      setError(e instanceof Error ? e.message : t('premium.restoreFailed'))
     } finally {
       setBusy(null)
     }
   }
 
   const native = billingAvailable()
+  const monthlyPrice = byId.get(PLAY_PRODUCTS.monthly)?.formattedPrice ?? t('premium.priceInPlay')
+  const annualPrice = byId.get(PLAY_PRODUCTS.annual)?.formattedPrice ?? t('premium.priceInPlay')
 
   return (
     <div className="premium-page">
       <Card className="premium-hero">
-        <div className="eyebrow">MON BUDGET FAMILIAL PREMIUM</div>
-        <h2>Gardez le contrôle de votre budget, toute l’année.</h2>
-        <p>Premium accompagne votre discipline financière avec l’ensemble des outils avancés de planification, d’analyse et de sauvegarde cloud.</p>
+        <div className="eyebrow">{t('premium.hero')}</div>
+        <h2>{t('premium.title')}</h2>
+        <p>{t('premium.body')}</p>
         <div className="premium-benefits">
-          <span>✓ Rapports et score détaillés</span>
-          <span>✓ Objectifs et provisions avancés</span>
-          <span>✓ Sauvegarde et restauration cloud</span>
-          <span>✓ Synchronisation sur plusieurs appareils</span>
+          <span>{t('premium.benefitReports')}</span>
+          <span>{t('premium.benefitGoals')}</span>
+          <span>{t('premium.benefitCloud')}</span>
+          <span>{t('premium.benefitSync')}</span>
         </div>
       </Card>
 
       <div className="premium-plans">
-        <Plan title="Mensuel" price={byId.get(PLAY_PRODUCTS.monthly)?.formattedPrice || FALLBACK_PRICES[PLAY_PRODUCTS.monthly]} note="Sans engagement long terme" disabled={!native || loading || busy !== null || !session} busy={busy === PLAY_PRODUCTS.monthly} onClick={() => void subscribe(PLAY_PRODUCTS.monthly)} />
-        <Plan title="Annuel" price={byId.get(PLAY_PRODUCTS.annual)?.formattedPrice || FALLBACK_PRICES[PLAY_PRODUCTS.annual]} note="Économisez 6 000 FCFA par rapport au mensuel" badge="RECOMMANDÉ" disabled={!native || loading || busy !== null || !session} busy={busy === PLAY_PRODUCTS.annual} onClick={() => void subscribe(PLAY_PRODUCTS.annual)} />
+        <Plan title={t('premium.monthly')} price={monthlyPrice} note={t('premium.monthlyNote')} disabled={!native || loading || busy !== null || !session} busy={busy === PLAY_PRODUCTS.monthly} onClick={() => void subscribe(PLAY_PRODUCTS.monthly)} />
+        <Plan title={t('premium.annual')} price={annualPrice} note={t('premium.annualNote')} badge={t('common.recommended')} disabled={!native || loading || busy !== null || !session} busy={busy === PLAY_PRODUCTS.annual} onClick={() => void subscribe(PLAY_PRODUCTS.annual)} />
       </div>
 
-      {!session && <div className="banner warn">Connectez-vous d’abord à votre compte pour que Premium puisse être restauré sur un nouvel appareil.</div>}
-      {!native && <div className="banner warn">Les abonnements sont disponibles dans la version Android installée depuis Google Play.</div>}
+      {!session && <div className="banner warn">{t('premium.signInFirst')}</div>}
+      {!native && <div className="banner warn">{t('premium.androidOnly')}</div>}
       {error && <div className="banner err">{error}</div>}
       {message && <div className="banner">{message}</div>}
 
       <div className="btn-row">
-        <button className="btn" disabled={!native || busy !== null} onClick={() => void restore()}>{busy === 'restore' ? 'Restauration…' : 'Restaurer mes achats'}</button>
-        <button className="btn" onClick={() => window.open(PLAY_SUBSCRIPTIONS_URL, '_blank', 'noopener,noreferrer')}>Gérer mon abonnement</button>
+        <button className="btn" disabled={!native || busy !== null} onClick={() => void restore()}>{busy === 'restore' ? t('premium.restoring') : t('premium.restore')}</button>
+        <button className="btn" onClick={() => window.open(PLAY_SUBSCRIPTIONS_URL, '_blank', 'noopener,noreferrer')}>{t('premium.manage')}</button>
       </div>
-      {!session && <button className="btn ghost mt" onClick={() => go('connexion')}>Se connecter</button>}
-      <p className="tiny mt">Le paiement et la résiliation sont gérés par Google Play. L’accès Premium est accordé uniquement après validation de l’achat côté serveur.</p>
+      {!session && <button className="btn ghost mt" onClick={() => go('connexion')}>{t('premium.signIn')}</button>}
+      <p className="tiny mt">{t('premium.legal')}</p>
     </div>
   )
 }
 
 function Plan({ title, price, note, badge, disabled, busy, onClick }: { title: string; price: string; note: string; badge?: string; disabled: boolean; busy: boolean; onClick: () => void }) {
+  const { t } = useI18n()
   return (
     <Card className={`premium-plan ${badge ? 'featured' : ''}`}>
       {badge && <div className="status-badge ok">{badge}</div>}
       <h3>{title}</h3>
       <div className="money-display premium-price">{price}</div>
       <p>{note}</p>
-      <button className="btn primary" disabled={disabled} onClick={onClick}>{busy ? 'Ouverture de Google Play…' : `Choisir ${title.toLowerCase()}`}</button>
+      <button className="btn primary" disabled={disabled} onClick={onClick}>{busy ? t('premium.openingPlay') : t('premium.choose', { plan: title.toLowerCase() })}</button>
     </Card>
   )
 }
