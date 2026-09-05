@@ -8,7 +8,9 @@ type Catalog = Record<string, string>
 
 export const LANGUAGE_STORAGE_KEY = 'mbf.language'
 const catalogs: Record<Language, Catalog> = { fr, en }
-let activeLanguage: Language = 'en'
+// Preserve the historic formatter behaviour before React mounts. The provider
+// synchronously sets the real phone/persisted language before rendering its children.
+let activeLanguage: Language = 'fr'
 
 export function languageFromLocale(locale: string | undefined): Language {
   return locale?.toLowerCase().startsWith('fr') ? 'fr' : 'en'
