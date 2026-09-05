@@ -6,21 +6,26 @@ export type Language = 'fr' | 'en'
 type Params = Record<string, string | number>
 type Catalog = Record<string, string>
 
-const STORAGE_KEY = 'mbf.language'
+export const LANGUAGE_STORAGE_KEY = 'mbf.language'
 const catalogs: Record<Language, Catalog> = { fr, en }
 let activeLanguage: Language = 'en'
 
+export function languageFromLocale(locale: string | undefined): Language {
+  return locale?.toLowerCase().startsWith('fr') ? 'fr' : 'en'
+}
+
+export function resolveLanguage(saved: string | null | undefined, locale: string | undefined): Language {
+  return saved === 'fr' || saved === 'en' ? saved : languageFromLocale(locale)
+}
+
 function systemLanguage(): Language {
   if (typeof navigator === 'undefined') return 'en'
-  return navigator.language.toLowerCase().startsWith('fr') ? 'fr' : 'en'
+  return languageFromLocale(navigator.language)
 }
 
 export function initialLanguage(): Language {
-  if (typeof localStorage !== 'undefined') {
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved === 'fr' || saved === 'en') return saved
-  }
-  return systemLanguage()
+  const saved = typeof localStorage !== 'undefined' ? localStorage.getItem(LANGUAGE_STORAGE_KEY) : null
+  return resolveLanguage(saved, typeof navigator === 'undefined' ? undefined : navigator.language)
 }
 
 export function getActiveLanguage(): Language {
@@ -65,9 +70,7 @@ export function paymentLabel(language: Language, value: string): string {
 }
 
 export function scoreText(language: Language, key: string, kind: 'label' | 'detail' | 'advice', fallback: string): string {
-  const catalogKey = `score.${key}.${kind}`
-  const translated = catalogs[language][catalogKey]
-  return translated ?? fallback
+  return catalogs[language][`score.${key}.${kind}`] ?? fallback
 }
 
 export function currencyText(language: Language, code: string, kind: 'currency' | 'region', fallback: string): string {
@@ -97,7 +100,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     language,
     locale: language === 'fr' ? 'fr-FR' : 'en-US',
     setLanguage(next) {
-      localStorage.setItem(STORAGE_KEY, next)
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, next)
       activeLanguage = next
       setLanguageState(next)
     },
