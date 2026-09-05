@@ -8,6 +8,8 @@ const FALLBACK_PRICES: Record<string, string> = {
   [PLAY_PRODUCTS.annual]: '12 000 FCFA / an',
 }
 
+const PLAY_SUBSCRIPTIONS_URL = 'https://play.google.com/store/account/subscriptions'
+
 export default function Premium({ go }: { go: (screen: string) => void }) {
   const { session } = useApp()
   const [products, setProducts] = useState<PlayProduct[]>([])
@@ -94,9 +96,12 @@ export default function Premium({ go }: { go: (screen: string) => void }) {
       {error && <div className="banner err">{error}</div>}
       {message && <div className="banner">{message}</div>}
 
-      <button className="btn" disabled={!native || busy !== null} onClick={() => void restore()}>{busy === 'restore' ? 'Restauration…' : 'Restaurer mes achats'}</button>
+      <div className="btn-row">
+        <button className="btn" disabled={!native || busy !== null} onClick={() => void restore()}>{busy === 'restore' ? 'Restauration…' : 'Restaurer mes achats'}</button>
+        <button className="btn" onClick={() => window.open(PLAY_SUBSCRIPTIONS_URL, '_blank', 'noopener,noreferrer')}>Gérer mon abonnement</button>
+      </div>
       {!session && <button className="btn ghost mt" onClick={() => go('connexion')}>Se connecter</button>}
-      <p className="tiny mt">Le paiement est traité par Google Play. L’accès Premium est accordé uniquement après validation de l’achat côté serveur.</p>
+      <p className="tiny mt">Le paiement et la résiliation sont gérés par Google Play. L’accès Premium est accordé uniquement après validation de l’achat côté serveur.</p>
     </div>
   )
 }
