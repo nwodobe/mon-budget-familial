@@ -1,5 +1,5 @@
 import { isCloudConfigured } from '../data/supabase'
-import { useI18n } from '../i18n'
+import { useI18n, type Language } from '../i18n'
 import { useApp } from '../state/AppContext'
 import { Card, MenuItem } from './common'
 
@@ -8,28 +8,33 @@ const PRIVACY_URLS = {
   en: 'https://nwodobe.github.io/mon-budget-familial/privacy-en.html',
 } as const
 
+const LANGUAGE_OPTIONS: Array<{ code: Language; label: string }> = [
+  { code: 'fr', label: 'Français' },
+  { code: 'en', label: 'English' },
+  { code: 'es', label: 'Español' },
+  { code: 'ar', label: 'العربية' },
+  { code: 'pt', label: 'Português' },
+]
+
 export default function Plus({ go }: { go: (screen: string) => void }) {
   const { session, online } = useApp()
   const { language, setLanguage, t } = useI18n()
+  const privacyUrl = language === 'fr' ? PRIVACY_URLS.fr : PRIVACY_URLS.en
 
   return (
     <div className="more-page">
-      <Card title="🌐 Langue / Language" className="menu-card">
-        <div className="chips" role="group" aria-label="Langue / Language">
-          <button
-            className={`chip ${language === 'fr' ? 'on' : ''}`}
-            onClick={() => setLanguage('fr')}
-            aria-pressed={language === 'fr'}
-          >
-            Français
-          </button>
-          <button
-            className={`chip ${language === 'en' ? 'on' : ''}`}
-            onClick={() => setLanguage('en')}
-            aria-pressed={language === 'en'}
-          >
-            English
-          </button>
+      <Card title="🌐 Langue / Language / Idioma / اللغة" className="menu-card">
+        <div className="chips" role="group" aria-label="Language selector">
+          {LANGUAGE_OPTIONS.map((option) => (
+            <button
+              key={option.code}
+              className={`chip ${language === option.code ? 'on' : ''}`}
+              onClick={() => setLanguage(option.code)}
+              aria-pressed={language === option.code}
+            >
+              {option.label}
+            </button>
+          ))}
         </div>
       </Card>
 
@@ -59,7 +64,7 @@ export default function Plus({ go }: { go: (screen: string) => void }) {
         />
         <MenuItem icon="shield" title={t('more.security')} subtitle={t('more.securitySubtitle')} onClick={() => go('profil')} />
         <MenuItem icon="backup" title={t('more.backup')} subtitle={t('more.backupSubtitle')} onClick={() => go('profil')} />
-        <MenuItem icon="shield" title={t('more.privacy')} subtitle={t('more.privacySubtitle')} onClick={() => window.open(PRIVACY_URLS[language], '_blank', 'noopener,noreferrer')} />
+        <MenuItem icon="shield" title={t('more.privacy')} subtitle={t('more.privacySubtitle')} onClick={() => window.open(privacyUrl, '_blank', 'noopener,noreferrer')} />
         {session && <MenuItem icon="alert" title={t('app.deleteAccount')} subtitle={t('more.deleteSubtitle')} onClick={() => go('suppression')} />}
       </Card>
 
