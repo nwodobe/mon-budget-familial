@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
-import { formatInt } from '../domain/engine'
 import { currencyMeta, formatMoney } from '../domain/currency'
+import { useI18n } from '../i18n'
 import { useApp } from '../state/AppContext'
 
 export type IconName =
@@ -42,27 +42,36 @@ export function Icon({ name, size = 22, className = '' }: { name: IconName; size
 
 export function Money({ value, currency = true }: { value: number; currency?: boolean }) {
   const { hideAmounts, ledger } = useApp()
+  const { locale, language } = useI18n()
   const code = ledger.settings.currency
-  if (hideAmounts) return <span>{currency ? `••• ${currencyMeta(code).symbol}` : '•••'}</span>
-  return <span>{currency ? formatMoney(value, code) : formatInt(value)}</span>
+  if (hideAmounts) return <span>{currency ? `••• ${code === 'XOF' && language === 'en' ? 'XOF' : currencyMeta(code).symbol}` : '•••'}</span>
+  return <span>{currency ? formatMoney(value, code, locale) : new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(value)}</span>
 }
 
 export function useMoneyText(): (value: number, currency?: boolean) => string {
   const { hideAmounts, ledger } = useApp()
+  const { locale, language } = useI18n()
   const code = ledger.settings.currency
-  return (value, currency = true) => hideAmounts ? (currency ? `••• ${currencyMeta(code).symbol}` : '•••') : currency ? formatMoney(value, code) : formatInt(value)
+  return (value, currency = true) => hideAmounts
+    ? (currency ? `••• ${code === 'XOF' && language === 'en' ? 'XOF' : currencyMeta(code).symbol}` : '•••')
+    : currency
+      ? formatMoney(value, code, locale)
+      : new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(value)
 }
 
 export function Card({ title, children, action, className = '' }: { title?: string; children: ReactNode; action?: ReactNode; className?: string }) {
-  return <section className={`card ${className}`}>{title && <div className="section-head"><h2>{title}</h2>{action}</div>}{children}</section>
+  const { tr } = useI18n()
+  return <section className={`card ${className}`}>{title && <div className="section-head"><h2>{tr(title)}</h2>{action}</div>}{children}</section>
 }
 
 export function StatCard({ label, value, tone = 'neutral' }: { label: string; value: ReactNode; tone?: 'neutral' | 'positive' | 'warning' | 'danger' }) {
-  return <div className={`stat-card ${tone}`}><div className="stat-label">{label}</div><div className="stat-value">{value}</div></div>
+  const { tr } = useI18n()
+  return <div className={`stat-card ${tone}`}><div className="stat-label">{tr(label)}</div><div className="stat-value">{value}</div></div>
 }
 
 export function Row({ k, v, note, tone }: { k: string; v: ReactNode; note?: string; tone?: 'neg' | 'pos' }) {
-  return <div className="row"><div><div className="k">{k}</div>{note && <div className="row-note">{note}</div>}</div><div className={`v ${tone ?? ''}`}>{v}</div></div>
+  const { tr } = useI18n()
+  return <div className="row"><div><div className="k">{tr(k)}</div>{note && <div className="row-note">{tr(note)}</div>}</div><div className={`v ${tone ?? ''}`}>{v}</div></div>
 }
 
 export function Bar({ pct, state }: { pct: number; state?: 'sain' | 'attention' | 'depasse' }) {
@@ -71,21 +80,27 @@ export function Bar({ pct, state }: { pct: number; state?: 'sain' | 'attention' 
 }
 
 export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
-  return <div className="field"><label>{label}</label>{children}{hint && <div className="hint">{hint}</div>}</div>
+  const { tr } = useI18n()
+  return <div className="field"><label>{tr(label)}</label>{children}{hint && <div className="hint">{tr(hint)}</div>}</div>
 }
 
 export function Sheet({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
-  return <div className="sheet-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}><div className="sheet" role="dialog" aria-modal="true" aria-label={title}><div className="sheet-handle"/><div className="sheet-head"><h2>{title}</h2><button className="icon-button" aria-label="Fermer" onClick={onClose}>×</button></div>{children}</div></div>
+  const { tr, t } = useI18n()
+  const localizedTitle = tr(title)
+  return <div className="sheet-backdrop" onClick={(e) => { if (e.target === e.currentTarget) onClose() }}><div className="sheet" role="dialog" aria-modal="true" aria-label={localizedTitle}><div className="sheet-handle"/><div className="sheet-head"><h2>{localizedTitle}</h2><button className="icon-button" aria-label={t('common.close')} onClick={onClose}>×</button></div>{children}</div></div>
 }
 
 export function Empty({ text, action }: { text: string; action?: ReactNode }) {
-  return <div className="empty"><div className="empty-icon"><Icon name="receipt" /></div><div>{text}</div>{action && <div className="empty-action">{action}</div>}</div>
+  const { tr } = useI18n()
+  return <div className="empty"><div className="empty-icon"><Icon name="receipt" /></div><div>{tr(text)}</div>{action && <div className="empty-action">{action}</div>}</div>
 }
 
 export function MenuItem({ icon, title, subtitle, onClick, danger = false }: { icon: IconName; title: string; subtitle?: string; onClick: () => void; danger?: boolean }) {
-  return <button className={`menu-item ${danger ? 'danger' : ''}`} onClick={onClick}><span className="menu-icon"><Icon name={icon} size={21}/></span><span className="menu-copy"><strong>{title}</strong>{subtitle && <small>{subtitle}</small>}</span><Icon name="chevronRight" size={19} className="menu-chevron"/></button>
+  const { tr } = useI18n()
+  return <button className={`menu-item ${danger ? 'danger' : ''}`} onClick={onClick}><span className="menu-icon"><Icon name={icon} size={21}/></span><span className="menu-copy"><strong>{tr(title)}</strong>{subtitle && <small>{tr(subtitle)}</small>}</span><Icon name="chevronRight" size={19} className="menu-chevron"/></button>
 }
 
 export function AmountInput({ value, onChange, autoFocus }: { value: number; onChange: (v: number) => void; autoFocus?: boolean }) {
-  return <input className="amount-input" inputMode="numeric" autoFocus={autoFocus} value={value === 0 ? '' : formatInt(value)} placeholder="0" onChange={(e) => { const digits = e.target.value.replace(/[^\d]/g, ''); onChange(digits === '' ? 0 : Math.min(Number(digits), 999999999999)) }} />
+  const { locale } = useI18n()
+  return <input className="amount-input" inputMode="numeric" autoFocus={autoFocus} value={value === 0 ? '' : new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(value)} placeholder="0" onChange={(e) => { const digits = e.target.value.replace(/[^\d]/g, ''); onChange(digits === '' ? 0 : Math.min(Number(digits), 999999999999)) }} />
 }

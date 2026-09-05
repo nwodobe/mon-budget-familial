@@ -1,45 +1,50 @@
 import { isCloudConfigured } from '../data/supabase'
+import { useI18n } from '../i18n'
 import { useApp } from '../state/AppContext'
 import { Card, MenuItem } from './common'
 
-const PRIVACY_URL = 'https://nwodobe.github.io/mon-budget-familial/privacy.html'
+const PRIVACY_URLS = {
+  fr: 'https://nwodobe.github.io/mon-budget-familial/privacy.html',
+  en: 'https://nwodobe.github.io/mon-budget-familial/privacy-en.html',
+} as const
 
 export default function Plus({ go }: { go: (screen: string) => void }) {
   const { session, online } = useApp()
+  const { language, t } = useI18n()
 
   return (
     <div className="more-page">
       <Card title="Premium" className="menu-card premium-menu-card">
-        <MenuItem icon="target" title="Mon Budget Familial Premium" subtitle="1 500 FCFA/mois ou 12 000 FCFA/an" onClick={() => go('premium')} />
+        <MenuItem icon="target" title="Mon Budget Familial Premium" subtitle={t('premium.priceInPlay')} onClick={() => go('premium')} />
       </Card>
 
-      <Card title="Planifier" className="menu-card">
-        <MenuItem icon="income" title="Revenus" subtitle="Salaire et autres entrées" onClick={() => go('revenus')} />
-        <MenuItem icon="charges" title="Charges" subtitle="Loyer, factures et échéances" onClick={() => go('charges')} />
-        <MenuItem icon="savings" title="Épargne" subtitle="Poches et mouvements d'épargne" onClick={() => go('epargne')} />
-        <MenuItem icon="target" title="Objectifs" subtitle="Projets financiers à atteindre" onClick={() => go('objectifs')} />
-        <MenuItem icon="prepare" title="À préparer" subtitle="Assurance, scolarité, entretien, voyage" onClick={() => go('preparer')} />
+      <Card title={t('more.plan')} className="menu-card">
+        <MenuItem icon="income" title={t('app.income')} subtitle={t('more.incomeSubtitle')} onClick={() => go('revenus')} />
+        <MenuItem icon="charges" title={t('app.bills')} subtitle={t('more.billsSubtitle')} onClick={() => go('charges')} />
+        <MenuItem icon="savings" title={t('app.savings')} subtitle={t('more.savingsSubtitle')} onClick={() => go('epargne')} />
+        <MenuItem icon="target" title={t('app.goals')} subtitle={t('more.goalsSubtitle')} onClick={() => go('objectifs')} />
+        <MenuItem icon="prepare" title={t('app.prepare')} subtitle={t('more.prepareSubtitle')} onClick={() => go('preparer')} />
       </Card>
 
-      <Card title="Analyser" className="menu-card">
-        <MenuItem icon="report" title="Rapports et score" subtitle="Bilan mensuel et discipline financière" onClick={() => go('rapport')} />
+      <Card title={t('more.analyze')} className="menu-card">
+        <MenuItem icon="report" title={t('more.reportsTitle')} subtitle={t('more.reportsSubtitle')} onClick={() => go('rapport')} />
       </Card>
 
-      <Card title="Compte" className="menu-card">
-        <MenuItem icon="user" title="Foyer et préférences" subtitle="Membres, seuils et réglages" onClick={() => go('profil')} />
+      <Card title={t('app.account')} className="menu-card">
+        <MenuItem icon="user" title={t('app.profile')} subtitle={t('more.profileSubtitle')} onClick={() => go('profil')} />
         <MenuItem
           icon="cloud"
-          title="Synchronisation"
-          subtitle={!isCloudConfigured ? 'Cloud non configuré' : session ? (online ? 'Compte connecté' : 'Hors connexion') : 'Connexion requise'}
+          title={t('more.sync')}
+          subtitle={!isCloudConfigured ? t('more.cloudNotConfigured') : session ? (online ? t('more.accountConnected') : t('app.offline')) : t('more.loginRequired')}
           onClick={() => go(session ? 'profil' : 'connexion')}
         />
-        <MenuItem icon="shield" title="Sécurité" subtitle="Code PIN et confidentialité" onClick={() => go('profil')} />
-        <MenuItem icon="backup" title="Sauvegarde" subtitle="Exporter ou restaurer les données" onClick={() => go('profil')} />
-        <MenuItem icon="shield" title="Politique de confidentialité" subtitle="Données, sécurité et droits utilisateur" onClick={() => window.open(PRIVACY_URL, '_blank', 'noopener,noreferrer')} />
-        {session && <MenuItem icon="alert" title="Supprimer mon compte" subtitle="Effacer définitivement le compte et les données cloud" onClick={() => go('suppression')} />}
+        <MenuItem icon="shield" title={t('more.security')} subtitle={t('more.securitySubtitle')} onClick={() => go('profil')} />
+        <MenuItem icon="backup" title={t('more.backup')} subtitle={t('more.backupSubtitle')} onClick={() => go('profil')} />
+        <MenuItem icon="shield" title={t('more.privacy')} subtitle={t('more.privacySubtitle')} onClick={() => window.open(PRIVACY_URLS[language], '_blank', 'noopener,noreferrer')} />
+        {session && <MenuItem icon="alert" title={t('app.deleteAccount')} subtitle={t('more.deleteSubtitle')} onClick={() => go('suppression')} />}
       </Card>
 
-      <div className="app-version">Mon Budget Familial · Discipline Financière V2</div>
+      <div className="app-version">{t('more.version')}</div>
     </div>
   )
 }

@@ -1,3 +1,4 @@
+import { getActiveLocale } from '../i18n'
 import type { IsoDate, IsoMonth } from './types'
 
 /** Nombre de jours du mois "YYYY-MM". */
@@ -68,19 +69,14 @@ export function elapsedDays(month: IsoMonth, reference: IsoDate): number {
   return Math.min(total, Math.max(1, Number(reference.slice(8, 10))))
 }
 
-const MONTH_LABELS = [
-  'janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin',
-  'juillet', 'aout', 'septembre', 'octobre', 'novembre', 'decembre',
-]
-
-export function monthLabel(month: IsoMonth): string {
+export function monthLabel(month: IsoMonth, locale = getActiveLocale()): string {
   const [y, m] = month.split('-').map(Number)
-  return `${MONTH_LABELS[m - 1]} ${y}`
+  return new Intl.DateTimeFormat(locale, { month: 'long', year: 'numeric' }).format(new Date(y, m - 1, 1))
 }
 
-export function dateLabel(date: IsoDate): string {
+export function dateLabel(date: IsoDate, locale = getActiveLocale()): string {
   const [y, m, d] = date.split('-').map(Number)
-  return `${d} ${MONTH_LABELS[m - 1]} ${y}`
+  return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(y, m - 1, d))
 }
 
 /** Debut (lundi) de la semaine contenant `date`, en ISO. */

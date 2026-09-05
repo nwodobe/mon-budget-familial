@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from './App'
+import { I18nProvider } from './i18n'
 import { AppProvider } from './state/AppContext'
 import './styles.css'
 import './ui/premium.css'
@@ -8,9 +9,11 @@ import './ui/visuals.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <AppProvider>
-      <App />
-    </AppProvider>
+    <I18nProvider>
+      <AppProvider>
+        <App />
+      </AppProvider>
+    </I18nProvider>
   </StrictMode>,
 )
 
