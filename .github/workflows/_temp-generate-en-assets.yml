@@ -1,0 +1,72 @@
+name: TEMP Generate English Play Assets
+
+on:
+  push:
+    branches:
+      - feat/internationalisation-fr-en
+    paths-ignore:
+      - 'playstore/assets/en-US/**'
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/internationalisation-fr-en
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - name: Build real app branch
+        run: npm run build -- --base=/
+      - name: Start local preview
+        run: |
+          npx vite preview --host 127.0.0.1 --port 4173 > /tmp/mbf-vite.log 2>&1 &
+          for i in {1..30}; do
+            curl -fsS http://127.0.0.1:4173/ >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/mbf-vite.log
+          exit 1
+      - name: Install Playwright and Pillow
+        run: |
+          python -m pip install --disable-pip-version-check playwright==1.55.0 Pillow==11.3.0
+          python -m playwright install --with-deps chromium
+      - name: Generate English feature graphic
+        run: python scripts/make-play-feature.py --language en --out playstore/assets/en-US/feature-graphic-1024x500.png
+      - name: Capture real English app screens
+        run: python scripts/capture-play-screenshots.py --url http://127.0.0.1:4173/ --language en --out playstore/assets/en-US
+      - name: Verify dimensions and RGB color mode
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          expected = {
+            Path('playstore/assets/en-US/feature-graphic-1024x500.png'): ((1024, 500), 'RGB'),
+            Path('playstore/assets/en-US/phone-01-home.png'): ((1080, 1920), 'RGB'),
+            Path('playstore/assets/en-US/phone-02-expenses.png'): ((1080, 1920), 'RGB'),
+            Path('playstore/assets/en-US/phone-03-envelopes.png'): ((1080, 1920), 'RGB'),
+            Path('playstore/assets/en-US/phone-04-premium.png'): ((1080, 1920), 'RGB'),
+          }
+          for path, (size, mode) in expected.items():
+            with Image.open(path) as image:
+              print(f'{path}: {image.size[0]}x{image.size[1]} {image.mode}')
+              assert image.size == size
+              assert image.mode == mode
+          PY
+      - name: Commit generated assets to PR branch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add playstore/assets/en-US/
+          git diff --cached --quiet && exit 0
+          git commit -m 'assets: add English Play Store graphics'
+          git push origin HEAD:feat/internationalisation-fr-en
