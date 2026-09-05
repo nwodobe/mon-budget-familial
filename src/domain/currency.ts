@@ -24,8 +24,9 @@ export function currencyMeta(code: CurrencyCode) {
 
 export function formatMoney(value: number, currency: CurrencyCode, locale = getActiveLocale()): string {
   try {
-    if (currency === 'XOF' && locale.startsWith('fr')) {
-      return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(value)} FCFA`
+    if (currency === 'XOF') {
+      const amount = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(value)
+      return `${amount} ${locale.startsWith('fr') ? 'FCFA' : 'XOF'}`
     }
     return new Intl.NumberFormat(locale, {
       style: 'currency',
