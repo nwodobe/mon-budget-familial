@@ -1,23 +1,38 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import fr from './fr.json'
 import en from './en.json'
+import es from './es.json'
+import ar from './ar.json'
+import pt from './pt.json'
 
-export type Language = 'fr' | 'en'
+export type Language = 'fr' | 'en' | 'es' | 'ar' | 'pt'
 type Params = Record<string, string | number>
 type Catalog = Record<string, string>
 
 export const LANGUAGE_STORAGE_KEY = 'mbf.language'
-const catalogs: Record<Language, Catalog> = { fr, en }
-// Preserve the historic formatter behaviour before React mounts. The provider
-// synchronously sets the real phone/persisted language before rendering its children.
+const catalogs: Record<Language, Catalog> = { fr, en, es, ar, pt }
+const locales: Record<Language, string> = {
+  fr: 'fr-FR',
+  en: 'en-US',
+  es: 'es-ES',
+  ar: 'ar',
+  pt: 'pt-BR',
+}
 let activeLanguage: Language = 'fr'
 
 export function languageFromLocale(locale: string | undefined): Language {
-  return locale?.toLowerCase().startsWith('fr') ? 'fr' : 'en'
+  const value = locale?.toLowerCase() ?? ''
+  if (value.startsWith('fr')) return 'fr'
+  if (value.startsWith('es')) return 'es'
+  if (value.startsWith('ar')) return 'ar'
+  if (value.startsWith('pt')) return 'pt'
+  return 'en'
 }
 
 export function resolveLanguage(saved: string | null | undefined, locale: string | undefined): Language {
-  return saved === 'fr' || saved === 'en' ? saved : languageFromLocale(locale)
+  return saved === 'fr' || saved === 'en' || saved === 'es' || saved === 'ar' || saved === 'pt'
+    ? saved
+    : languageFromLocale(locale)
 }
 
 export function initialLanguage(): Language {
@@ -30,7 +45,7 @@ export function getActiveLanguage(): Language {
 }
 
 export function getActiveLocale(): string {
-  return activeLanguage === 'fr' ? 'fr-FR' : 'en-US'
+  return locales[activeLanguage]
 }
 
 function interpolate(value: string, params?: Params): string {
@@ -67,11 +82,11 @@ export function paymentLabel(language: Language, value: string): string {
 }
 
 export function scoreText(language: Language, key: string, kind: 'label' | 'detail' | 'advice', fallback: string): string {
-  return catalogs[language][`score.${key}.${kind}`] ?? fallback
+  return catalogs[language][`score.${key}.${kind}`] ?? catalogs.en[`score.${key}.${kind}`] ?? fallback
 }
 
 export function currencyText(language: Language, code: string, kind: 'currency' | 'region', fallback: string): string {
-  return catalogs[language][`${kind}.${code}`] ?? fallback
+  return catalogs[language][`${kind}.${code}`] ?? catalogs.en[`${kind}.${code}`] ?? fallback
 }
 
 type I18nContextValue = {
@@ -90,12 +105,13 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     activeLanguage = language
-    document.documentElement.lang = language === 'fr' ? 'fr' : 'en'
+    document.documentElement.lang = language
+    document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr'
   }, [language])
 
   const value = useMemo<I18nContextValue>(() => ({
     language,
-    locale: language === 'fr' ? 'fr-FR' : 'en-US',
+    locale: locales[language],
     setLanguage(next) {
       localStorage.setItem(LANGUAGE_STORAGE_KEY, next)
       activeLanguage = next
