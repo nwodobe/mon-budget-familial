@@ -1,3 +1,5 @@
+import { getActiveLocale } from '../i18n'
+
 export const SUPPORTED_CURRENCIES = [
   { code: 'XOF', label: 'FCFA', name: 'Franc CFA BCEAO', region: 'Afrique de l’Ouest', symbol: 'FCFA' },
   { code: 'EUR', label: 'Euro', name: 'Euro', region: 'Zone euro', symbol: '€' },
@@ -20,9 +22,9 @@ export function currencyMeta(code: CurrencyCode) {
   return SUPPORTED_CURRENCIES.find((c) => c.code === code) ?? SUPPORTED_CURRENCIES[0]
 }
 
-export function formatMoney(value: number, currency: CurrencyCode, locale = 'fr-FR'): string {
+export function formatMoney(value: number, currency: CurrencyCode, locale = getActiveLocale()): string {
   try {
-    if (currency === 'XOF') {
+    if (currency === 'XOF' && locale.startsWith('fr')) {
       return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(value)} FCFA`
     }
     return new Intl.NumberFormat(locale, {
@@ -35,12 +37,12 @@ export function formatMoney(value: number, currency: CurrencyCode, locale = 'fr-
   }
 }
 
-export function formatMoneyCompact(value: number, currency: CurrencyCode, locale = 'fr-FR'): string {
+export function formatMoneyCompact(value: number, currency: CurrencyCode, locale = getActiveLocale()): string {
   try {
     return new Intl.NumberFormat(locale, {
       notation: 'compact',
       maximumFractionDigits: 1,
-    }).format(value) + ` ${currencyMeta(currency).symbol}`
+    }).format(value) + ` ${currency === 'XOF' && !locale.startsWith('fr') ? 'XOF' : currencyMeta(currency).symbol}`
   } catch {
     return formatMoney(value, currency, locale)
   }
