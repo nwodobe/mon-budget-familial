@@ -1,7 +1,10 @@
 import { dateLabel, monthLabel } from '../domain/dates'
+import { cumulativeDailySpend, spendByEnvelope } from '../domain/analytics'
+import { currencyMeta } from '../domain/currency'
 import { computeWeek, type MonthSnapshot } from '../domain/engine'
 import { useApp } from '../state/AppContext'
 import { Bar, Card, Empty, Icon, Money, Row, StatCard, useMoneyText } from './common'
+import { EnvelopeVisual, SpendDonut, SpendPaceChart } from './visuals'
 
 const HEALTH_LABEL: Record<string, string> = {
   saine: 'Situation saine',
@@ -16,11 +19,14 @@ export default function Dashboard({ go, onAdd }: { go: (screen: string) => void;
   const nextCharge = s.charges.find((c) => !c.paid)
   const alertEnvelopes = s.envelopes.filter((e) => e.state !== 'sain').slice(0, 3)
   const hasWatchItems = Boolean(nextCharge?.late || alertEnvelopes.length || s.todayOverBy > 0 || s.deficit > 0)
+  const pace = cumulativeDailySpend(ledger, month, s.todayBudget)
+  const categories = spendByEnvelope(ledger, month)
+  const currency = currencyMeta(ledger.settings.currency)
 
   return <>
     <section className={`hero-card ${s.health === 'danger' ? 'danger' : s.health === 'attention' ? 'warning' : ''}`}>
       <div className="hero-topline"><span>Disponible à dépenser</span><span className="hero-status"><span className={`dot ${s.health === 'saine' ? 'ok' : s.health === 'attention' ? 'warn' : 'danger'}`} />{HEALTH_LABEL[s.health]}</span></div>
-      <div className="hero-money"><Money value={s.spendable} currency={false} /><span>FCFA</span></div>
+      <div className="hero-money"><Money value={s.spendable} currency={false} /><span>{currency.symbol}</span></div>
       <p>{s.deficit > 0 ? <>Déficit à couvrir : <strong>{money(s.deficit)}</strong></> : 'Après vos charges, votre épargne et vos provisions protégées.'}</p>
     </section>
 
@@ -31,7 +37,7 @@ export default function Dashboard({ go, onAdd }: { go: (screen: string) => void;
         <StatCard label="Dépensé" value={<Money value={s.todaySpent} currency={false}/>} tone={s.todayOverBy > 0 ? 'danger' : 'neutral'} />
         <StatCard label={s.todayOverBy > 0 ? 'Dépassé' : 'Reste'} value={<Money value={s.todayOverBy > 0 ? s.todayOverBy : s.todayRemaining} currency={false}/>} tone={s.todayOverBy > 0 ? 'danger' : 'positive'} />
       </div>
-      <div className="stats-currency">Montants en FCFA</div>
+      <div className="stats-currency">Montants en {ledger.settings.currency}</div>
     </section>
 
     <div className="quick-actions">
@@ -39,6 +45,18 @@ export default function Dashboard({ go, onAdd }: { go: (screen: string) => void;
       <button onClick={() => go('revenus')}><span><Icon name="income"/></span>Revenu</button>
       <button onClick={() => go('epargne')}><span><Icon name="savings"/></span>Épargne</button>
     </div>
+
+    <Card title="Mes dépenses ce mois-ci">
+      <SpendPaceChart data={pace} />
+    </Card>
+
+    <Card title="Où part mon argent ?">
+      <SpendDonut rows={categories} />
+    </Card>
+
+    <Card title="Budget par enveloppe" action={<button className="text-action" onClick={() => go('budget')}>Gérer</button>}>
+      <EnvelopeVisual rows={categories} />
+    </Card>
 
     {hasWatchItems && <Card title="À surveiller" className="watch-card">
       {s.deficit > 0 && <div className="watch-item danger"><span className="watch-icon"><Icon name="alert" size={19}/></span><div><strong>Déficit à couvrir</strong><small>{money(s.deficit)} manquent pour protéger le mois.</small></div></div>}
