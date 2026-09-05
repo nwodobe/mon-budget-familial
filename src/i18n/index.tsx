@@ -20,11 +20,6 @@ export function resolveLanguage(saved: string | null | undefined, locale: string
   return saved === 'fr' || saved === 'en' ? saved : languageFromLocale(locale)
 }
 
-function systemLanguage(): Language {
-  if (typeof navigator === 'undefined') return 'en'
-  return languageFromLocale(navigator.language)
-}
-
 export function initialLanguage(): Language {
   const saved = typeof localStorage !== 'undefined' ? localStorage.getItem(LANGUAGE_STORAGE_KEY) : null
   return resolveLanguage(saved, typeof navigator === 'undefined' ? undefined : navigator.language)
