@@ -23,6 +23,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Reject unresolved public templates
+        run: |
+          if grep -R -n -E '\{\{[^}]+\}\}' public playstore; then
+            echo 'Unresolved {{...}} template found in public/ or playstore/.'
+            exit 1
+          fi
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:

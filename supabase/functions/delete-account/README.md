@@ -1,42 +1,85 @@
-# Déploiement de la fonction `delete-account`
+# Déploiement des Edge Functions Google Play / compte
 
-La fonction est appelée par `src/ui/DeleteAccount.tsx` et doit être déployée avec vérification JWT activée.
+Les fonctions `delete-account` et `verify-play-purchase` doivent rester protégées par la vérification JWT de Supabase.
 
-## Pré-requis
+Projet Supabase de **Mon Budget Familial** : `dldcstmgxklumcvynlou`.
 
-- projet Supabase : `dldcstmgxklumcvynlou`
-- CLI Supabase installée et authentifiée
-- projet lié localement au bon ref Supabase
+> État vérifié le 5 septembre 2026 : les deux fonctions sont déjà `ACTIVE` sur ce projet et `verify_jwt=true`. Le workflow ci-dessous sert à rendre leur redéploiement reproductible depuis GitHub sans commiter de secret.
 
-## Déploiement
+## 1. Créer `SUPABASE_ACCESS_TOKEN`
 
-Depuis la racine du dépôt :
+1. Connectez-vous au Dashboard Supabase avec le compte propriétaire du projet.
+2. Ouvrez le menu du compte, puis **Account Settings → Access Tokens**.
+3. Cliquez sur **Generate new token**.
+4. Donnez-lui un nom explicite, par exemple `github-mon-budget-familial-functions`.
+5. Copiez le token lorsqu'il est affiché. Ne le placez dans aucun fichier du dépôt.
+6. Dans GitHub : dépôt `nwodobe/mon-budget-familial` → **Settings → Secrets and variables → Actions → New repository secret**.
+7. Nom : `SUPABASE_ACCESS_TOKEN`.
+8. Valeur : le token Supabase copié à l'étape 5.
+
+Le workflow `.github/workflows/deploy-supabase-functions.yml` peut ensuite être lancé manuellement depuis **Actions → Deploy Supabase Edge Functions → Run workflow**.
+
+## 2. Déploiement par GitHub Actions
+
+Le workflow exécute :
 
 ```bash
-supabase functions deploy delete-account --project-ref dldcstmgxklumcvynlou --verify-jwt
+supabase functions deploy delete-account --project-ref dldcstmgxklumcvynlou
+supabase functions deploy verify-play-purchase --project-ref dldcstmgxklumcvynlou
 ```
 
-La fonction utilise les secrets Supabase fournis automatiquement au runtime :
+Avec la CLI Supabase actuelle, la vérification JWT est activée par défaut. Le flag disponible est `--no-verify-jwt` pour la désactiver ; il n'est volontairement jamais utilisé ici. Les fonctions sont donc déployées avec vérification JWT active.
 
-- `SUPABASE_URL`
-- `SUPABASE_ANON_KEY`
-- `SUPABASE_SERVICE_ROLE_KEY`
+## 3. Procédure de repli depuis le Dashboard Supabase, sans CLI
 
-Aucun de ces secrets ne doit être commité dans Git.
+Si GitHub Actions ou la CLI ne sont pas utilisables :
 
-## Comportement attendu
+1. Ouvrez le projet Supabase `dldcstmgxklumcvynlou`.
+2. Allez dans **Edge Functions**.
+3. Ouvrez `delete-account` (ou créez-la si elle a été supprimée).
+4. Remplacez le contenu de `index.ts` par le fichier versionné `supabase/functions/delete-account/index.ts`.
+5. Vérifiez que l'option de vérification JWT est activée, puis déployez la fonction.
+6. Répétez pour `verify-play-purchase` avec `supabase/functions/verify-play-purchase/index.ts`.
+7. Revenez à la liste des fonctions et vérifiez pour chacune : **status = ACTIVE** et **verify_jwt = true**.
 
-1. le JWT du client est vérifié ;
-2. la session utilisateur est revalidée avec `auth.getUser()` ;
-3. l’utilisateur Auth courant est supprimé via la clé service role ;
-4. les tables `public.mbf_*` sont supprimées en cascade grâce aux clés étrangères `ON DELETE CASCADE` vers `auth.users(id)` définies dans les migrations ;
-5. la fonction retourne `{ "ok": true }` en cas de succès.
+Ne collez jamais `SUPABASE_SERVICE_ROLE_KEY`, `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` ou un autre secret dans le code de la fonction : les secrets doivent rester dans la gestion des secrets Supabase.
 
-## Vérification après déploiement
+## 4. Test après déploiement
 
-Dans Supabase Dashboard → Edge Functions → `delete-account` :
+### Test A — appel non authentifié : doit être refusé
 
-- statut : `ACTIVE`
-- `verify_jwt` : `true`
+```bash
+curl -i -X POST \
+  https://dldcstmgxklumcvynlou.supabase.co/functions/v1/delete-account \
+  -H 'Content-Type: application/json' \
+  -d '{}'
+```
 
-Un appel non authentifié doit être refusé. Un appel authentifié depuis l’écran de suppression doit supprimer le compte puis les données cloud liées.
+Résultat attendu : **HTTP 401** (ou refus équivalent par la passerelle JWT). Le compte ne doit évidemment pas être supprimé.
+
+### Test B — appel authentifié : doit supprimer un compte de test
+
+Utilisez uniquement un **compte de test jetable**, jamais votre compte principal.
+
+1. Créez un utilisateur de test dans **Authentication → Users** ou via l'application.
+2. Ajoutez quelques données de test dans l'application et synchronisez-les.
+3. Récupérez le JWT de session de ce compte de test.
+4. Lancez :
+
+```bash
+curl -i -X POST \
+  https://dldcstmgxklumcvynlou.supabase.co/functions/v1/delete-account \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer <TEST_USER_JWT>' \
+  -H 'apikey: <VITE_SUPABASE_ANON_KEY>' \
+  -d '{}'
+```
+
+Résultat attendu : **HTTP 200** avec `{"ok":true}`.
+
+5. Dans **Authentication → Users**, vérifiez que l'utilisateur de test n'existe plus.
+6. Dans le Table Editor ou SQL Editor, vérifiez qu'aucune ligne `mbf_*` ne subsiste pour son ancien `user_id`. Les migrations du projet référencent `auth.users(id)` avec `ON DELETE CASCADE`, ce qui assure cette suppression en cascade.
+
+## 5. Secret Google Play côté Supabase
+
+`verify-play-purchase` a une dépendance supplémentaire : le secret Supabase `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`. Il est distinct de `SUPABASE_ACCESS_TOKEN` et des secrets de build GitHub. Sans lui, la fonction renvoie `503 google_play_not_configured`.

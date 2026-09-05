@@ -46,7 +46,7 @@ https://nwodobe.github.io/mon-budget-familial/privacy.html
 https://nwodobe.github.io/mon-budget-familial/delete-account.html
 
 ## Coordonnées éditeur à compléter dans Play Console
-- E-mail de support : {{SUPPORT_EMAIL}}
+- E-mail de support : [[À REMPLIR : votre adresse e-mail de support]]
 - Site Web : https://nwodobe.github.io/mon-budget-familial/
 
 ## Positionnement
