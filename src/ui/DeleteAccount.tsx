@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { clearPin } from '../data/pin'
 import { clearLocal } from '../data/storage'
 import { supabase } from '../data/supabase'
+import { useI18n } from '../i18n'
 import { useApp } from '../state/AppContext'
 import { Card } from './common'
 
 export default function DeleteAccount({ onDone }: { onDone: () => void }) {
+  const { t } = useI18n()
   const { session, signOut } = useApp()
   const [confirmed, setConfirmed] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -15,18 +17,12 @@ export default function DeleteAccount({ onDone }: { onDone: () => void }) {
     if (!supabase || !session || !confirmed) return
     setBusy(true)
     setError('')
-
-    const { error: invokeError } = await supabase.functions.invoke('delete-account', {
-      method: 'POST',
-      body: {},
-    })
-
+    const { error: invokeError } = await supabase.functions.invoke('delete-account', { method: 'POST', body: {} })
     if (invokeError) {
       setBusy(false)
-      setError("La suppression n'a pas pu être confirmée. Vérifiez votre connexion puis réessayez.")
+      setError(t('delete.failed'))
       return
     }
-
     await signOut()
     clearLocal()
     clearPin()
@@ -34,28 +30,15 @@ export default function DeleteAccount({ onDone }: { onDone: () => void }) {
     window.location.reload()
   }
 
-  if (!session) {
-    return <Card title="Supprimer mon compte"><p>Vous devez être connecté au compte à supprimer.</p><button className="btn" onClick={onDone}>Retour</button></Card>
-  }
+  if (!session) return <Card title={t('delete.title')}><p>{t('delete.mustSignIn')}</p><button className="btn" onClick={onDone}>{t('delete.back')}</button></Card>
 
-  return <Card title="Supprimer mon compte">
-    <div className="banner err" style={{ marginBottom: 14 }}>
-      <span className="dot danger" />
-      Cette action est définitive.
-    </div>
-    <p>Vous allez supprimer le compte <strong>{session.email}</strong> et ses données cloud : revenus, charges, dépenses, enveloppes, épargne, objectifs, provisions et paramètres synchronisés.</p>
-    <p>Une copie locale peut être exportée avant suppression depuis <strong>Plus → Sauvegarde</strong>.</p>
-    <label className="check-row" style={{ marginTop: 16 }}>
-      <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} />
-      <span>Je comprends que cette suppression est irréversible.</span>
-    </label>
+  return <Card title={t('delete.title')}>
+    <div className="banner err" style={{ marginBottom: 14 }}><span className="dot danger" />{t('delete.final')}</div>
+    <p>{t('delete.body', { email: session.email ?? '' })}</p>
+    <p>{t('delete.export')}</p>
+    <label className="check-row" style={{ marginTop: 16 }}><input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} /><span>{t('delete.confirm')}</span></label>
     {error && <div className="banner err mt"><span className="dot danger" />{error}</div>}
-    <div className="btn-row mt">
-      <button className="btn" disabled={busy} onClick={onDone}>Annuler</button>
-      <button className="btn danger" disabled={!confirmed || busy} onClick={() => void removeAccount()}>
-        {busy ? 'Suppression...' : 'Supprimer définitivement'}
-      </button>
-    </div>
-    <div className="tiny mt">Après confirmation, le compte cloud est supprimé côté serveur puis les données locales de cet appareil sont effacées.</div>
+    <div className="btn-row mt"><button className="btn" disabled={busy} onClick={onDone}>{t('common.cancel')}</button><button className="btn danger" disabled={!confirmed || busy} onClick={() => void removeAccount()}>{busy ? t('delete.busy') : t('delete.action')}</button></div>
+    <div className="tiny mt">{t('delete.after')}</div>
   </Card>
 }
