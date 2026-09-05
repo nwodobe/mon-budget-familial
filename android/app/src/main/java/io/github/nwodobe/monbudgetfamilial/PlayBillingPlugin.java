@@ -24,6 +24,8 @@ import java.util.Map;
 
 @CapacitorPlugin(name = "PlayBilling")
 public class PlayBillingPlugin extends Plugin implements PurchasesUpdatedListener {
+    private static final String TRIAL_OFFER_ID = "trial-14d";
+
     private BillingClient billingClient;
     private final Map<String, ProductDetails> productCache = new HashMap<>();
     private PluginCall pendingPurchaseCall;
@@ -90,8 +92,8 @@ public class PlayBillingPlugin extends Plugin implements PurchasesUpdatedListene
                 productCache.clear();
                 for (ProductDetails details : result.getProductDetailsList()) {
                     List<ProductDetails.SubscriptionOfferDetails> offers = details.getSubscriptionOfferDetails();
-                    if (offers == null || offers.isEmpty()) continue;
-                    ProductDetails.SubscriptionOfferDetails offer = offers.get(0);
+                    ProductDetails.SubscriptionOfferDetails offer = selectPreferredOffer(details.getProductId(), offers);
+                    if (offer == null) continue;
                     List<ProductDetails.PricingPhase> phases = offer.getPricingPhases().getPricingPhaseList();
                     if (phases.isEmpty()) continue;
                     ProductDetails.PricingPhase displayPhase = phases.get(phases.size() - 1);
@@ -128,15 +130,14 @@ public class PlayBillingPlugin extends Plugin implements PurchasesUpdatedListene
                 return;
             }
             List<ProductDetails.SubscriptionOfferDetails> offers = details.getSubscriptionOfferDetails();
-            if (offers == null || offers.isEmpty()) {
+            ProductDetails.SubscriptionOfferDetails selected = selectPreferredOffer(productId, offers);
+            if (selected == null) {
                 call.reject("Aucune offre active pour ce produit.");
                 return;
             }
-            ProductDetails.SubscriptionOfferDetails selected = offers.get(0);
-            if (requestedOfferToken != null && !requestedOfferToken.isEmpty()) {
-                for (ProductDetails.SubscriptionOfferDetails offer : offers) {
-                    if (requestedOfferToken.equals(offer.getOfferToken())) selected = offer;
-                }
+            if (requestedOfferToken != null && !requestedOfferToken.isEmpty() && !requestedOfferToken.equals(selected.getOfferToken())) {
+                call.reject("L'offre Google Play a changé. Rechargez les offres avant l'achat.");
+                return;
             }
             BillingFlowParams.ProductDetailsParams productParams = BillingFlowParams.ProductDetailsParams.newBuilder()
                 .setProductDetails(details)
@@ -153,6 +154,28 @@ public class PlayBillingPlugin extends Plugin implements PurchasesUpdatedListene
                 call.reject("Impossible d'ouvrir Google Play: " + result.getDebugMessage());
             }
         });
+    }
+
+    private ProductDetails.SubscriptionOfferDetails selectPreferredOffer(
+        String productId,
+        List<ProductDetails.SubscriptionOfferDetails> offers
+    ) {
+        String basePlanId = basePlanIdForProduct(productId);
+        if (basePlanId == null || offers == null || offers.isEmpty()) return null;
+
+        ProductDetails.SubscriptionOfferDetails basePlan = null;
+        for (ProductDetails.SubscriptionOfferDetails offer : offers) {
+            if (!basePlanId.equals(offer.getBasePlanId())) continue;
+            if (TRIAL_OFFER_ID.equals(offer.getOfferId())) return offer;
+            if (offer.getOfferId() == null) basePlan = offer;
+        }
+        return basePlan;
+    }
+
+    private String basePlanIdForProduct(String productId) {
+        if ("premium_monthly".equals(productId)) return "monthly";
+        if ("premium_annual".equals(productId)) return "annual";
+        return null;
     }
 
     @Override

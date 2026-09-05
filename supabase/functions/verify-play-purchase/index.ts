@@ -49,7 +49,7 @@ Deno.serve(async (req: Request) => {
       const ackResponse = await fetch(ackUrl, {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ externalAccountIds: { obfuscatedAccountId: expectedAccountId } }),
+        body: JSON.stringify({}),
       });
       if (!ackResponse.ok) return json({ error: "acknowledgement_failed", status: ackResponse.status }, 502);
     }
