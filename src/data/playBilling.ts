@@ -15,6 +15,8 @@ export type PlayProduct = {
   formattedPrice: string
   offerToken: string
   basePlanId?: string
+  offerId?: string | null
+  offerTags?: string[]
 }
 
 type PurchaseResult = {
