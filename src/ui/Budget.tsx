@@ -1,139 +1,63 @@
 import { useState } from 'react'
 import { monthLabel } from '../domain/dates'
-import { formatInt } from '../domain/disciplineV2'
+import { useI18n } from '../i18n'
 import { useApp } from '../state/AppContext'
-import { AmountInput, Bar, Card, Empty, Field, Money, Row, Sheet } from './common'
+import { AmountInput, Bar, Card, Empty, Field, Money, Row, Sheet, useMoneyText } from './common'
 
-const SUGGESTIONS = [
-  'Alimentation', 'Transport', 'Carburant', 'Maison', 'Santé', 'Téléphone / Internet',
-  'Électricité', 'Eau', 'Aide familiale', 'Loisirs', 'Restaurant', 'Imprévus',
-]
+const SUGGESTION_KEYS = ['food', 'transport', 'fuel', 'home', 'health', 'phone', 'electricity', 'water', 'familyHelp', 'leisure', 'restaurant', 'unexpected'] as const
 
 export default function Budget() {
+  const { t } = useI18n()
+  const money = useMoneyText()
   const { snapshot, ledger, month, create, update, remove } = useApp()
   const [editing, setEditing] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
-  const totalSpent = snapshot.envelopes.reduce((s, e) => s + e.spent, 0)
-  const provisionTarget = snapshot.provisions.reduce((s, p) => s + p.monthlyNeeded, 0)
-  const used = new Set(snapshot.envelopes.map((e) => e.name.toLowerCase()))
-  const missing = SUGGESTIONS.filter((s) => !used.has(s.toLowerCase()))
+  const totalSpent = snapshot.envelopes.reduce((sum, envelope) => sum + envelope.spent, 0)
+  const provisionTarget = snapshot.provisions.reduce((sum, provision) => sum + provision.monthlyNeeded, 0)
+  const used = new Set(snapshot.envelopes.map((envelope) => envelope.name.toLowerCase()))
+  const suggestions = SUGGESTION_KEYS.map((key) => t(`category.${key}`))
+  const missing = suggestions.filter((suggestion) => !used.has(suggestion.toLowerCase()))
 
-  return (
-    <>
-      <Card title={`Plan du mois - ${monthLabel(month)}`}>
-        <div className="rows">
-          <Row k="Revenus encaissés" v={<Money value={snapshot.income} />} tone="pos" />
-          {snapshot.incomeExpected > 0 && (
-            <Row k="Revenus encore attendus" v={<Money value={snapshot.incomeExpected} />} note="Non inclus dans votre Disponible à dépenser" />
-          )}
-          <Row k="Charges obligatoires" v={<Money value={snapshot.chargesDue} />} />
-          <Row k="Épargne décidée" v={<Money value={snapshot.savingsTarget} />} />
-          <Row k="Provisions du mois" v={<Money value={provisionTarget} />} />
-          <Row k="Disponible pour enveloppes" v={<Money value={snapshot.envelopeCapacity} />} />
-          <Row k="Enveloppes affectées" v={<Money value={snapshot.envelopeAllocated} />} />
-          <Row
-            k={snapshot.envelopeAllocationGap >= 0 ? 'Reste à affecter' : 'Sur-allocation'}
-            v={<Money value={Math.abs(snapshot.envelopeAllocationGap)} />}
-            tone={snapshot.envelopeAllocationGap >= 0 ? 'pos' : 'neg'}
-          />
-        </div>
-        <div className={`banner mt ${snapshot.envelopeAllocationStatus === 'impossible' ? 'over' : ''}`}>
-          <span className={`dot ${snapshot.envelopeAllocationStatus === 'impossible' ? 'danger' : 'ok'}`} />
-          {snapshot.envelopeAllocationStatus === 'impossible'
-            ? `Budget impossible : vous avez affecté ${formatInt(Math.abs(snapshot.envelopeAllocationGap))} FCFA de plus que votre capacité actuelle.`
-            : `Budget équilibré. Il reste ${formatInt(snapshot.envelopeAllocationGap)} FCFA à affecter ou à conserver comme marge.`}
-        </div>
-      </Card>
+  return <>
+    <Card title={t('budget.monthPlan', { month: monthLabel(month) })}>
+      <div className="rows">
+        <Row k={t('budget.receivedIncome')} v={<Money value={snapshot.income} />} tone="pos" />
+        {snapshot.incomeExpected > 0 && <Row k={t('budget.expectedIncome')} v={<Money value={snapshot.incomeExpected} />} note={t('budget.expectedNote')} />}
+        <Row k={t('budget.mandatoryBills')} v={<Money value={snapshot.chargesDue} />} />
+        <Row k={t('budget.decidedSavings')} v={<Money value={snapshot.savingsTarget} />} />
+        <Row k={t('budget.monthProvisions')} v={<Money value={provisionTarget} />} />
+        <Row k={t('budget.envelopeCapacity')} v={<Money value={snapshot.envelopeCapacity} />} />
+        <Row k={t('budget.allocated')} v={<Money value={snapshot.envelopeAllocated} />} />
+        <Row k={snapshot.envelopeAllocationGap >= 0 ? t('budget.leftToAllocate') : t('budget.overAllocation')} v={<Money value={Math.abs(snapshot.envelopeAllocationGap)} />} tone={snapshot.envelopeAllocationGap >= 0 ? 'pos' : 'neg'} />
+      </div>
+      <div className={`banner mt ${snapshot.envelopeAllocationStatus === 'impossible' ? 'over' : ''}`}><span className={`dot ${snapshot.envelopeAllocationStatus === 'impossible' ? 'danger' : 'ok'}`} />{snapshot.envelopeAllocationStatus === 'impossible' ? t('budget.impossible', { amount: money(Math.abs(snapshot.envelopeAllocationGap)) }) : t('budget.balanced', { amount: money(snapshot.envelopeAllocationGap) })}</div>
+    </Card>
 
-      <Card title="Enveloppes" action={<button className="btn small ghost" onClick={() => setAdding(true)}>Ajouter</button>}>
-        {snapshot.envelopes.length === 0 ? (
-          <Empty text="Créez vos enveloppes : elles vous aident à décider où va votre argent avant de le dépenser." />
-        ) : (
-          snapshot.envelopes.map((e) => (
-            <div className="env" key={e.id}>
-              <div className="env-head">
-                <div className="env-name">
-                  <span className={`dot ${e.state === 'depasse' ? 'danger' : e.state === 'attention' ? 'warn' : 'ok'}`} />
-                  {e.name}
-                </div>
-                <button className="btn small ghost" onClick={() => setEditing(e.id)}>Modifier</button>
-              </div>
-              <Bar pct={e.usedPct} state={e.state} />
-              <div className="env-sub">
-                <span><Money value={e.spent} currency={false} /> / <Money value={e.planned} /> ({e.usedPct} %)</span>
-                <span>{e.remaining >= 0 ? 'Reste ' : 'Dépassement '}<Money value={Math.abs(e.remaining)} /></span>
-              </div>
-            </div>
-          ))
-        )}
-        {snapshot.envelopes.length > 0 && (
-          <div className="tiny mt">Total dépensé dans les enveloppes : {formatInt(totalSpent)} FCFA.</div>
-        )}
-      </Card>
+    <Card title={t('budget.envelopes')} action={<button className="btn small ghost" onClick={() => setAdding(true)}>{t('common.add')}</button>}>
+      {snapshot.envelopes.length === 0 ? <Empty text={t('budget.empty')} /> : snapshot.envelopes.map((envelope) => <div className="env" key={envelope.id}>
+        <div className="env-head"><div className="env-name"><span className={`dot ${envelope.state === 'depasse' ? 'danger' : envelope.state === 'attention' ? 'warn' : 'ok'}`} style={{ display: 'inline-block', marginRight: 7 }} />{envelope.name}</div><button className="btn small ghost" onClick={() => setEditing(envelope.id)}>{t('common.edit')}</button></div>
+        <Bar pct={envelope.usedPct} state={envelope.state} />
+        <div className="env-sub"><span><Money value={envelope.spent} currency={false} /> / <Money value={envelope.planned} /> ({envelope.usedPct}%)</span><span>{envelope.remaining >= 0 ? t('dashboard.leftPrefix') : t('dashboard.overPrefix')}<Money value={Math.abs(envelope.remaining)} /></span></div>
+      </div>)}
+      {snapshot.envelopes.length > 0 && <div className="tiny mt">{t('budget.totalSpent', { amount: money(totalSpent) })}</div>}
+    </Card>
 
-      {missing.length > 0 && (
-        <Card title="Catégories courantes">
-          <div className="chips">
-            {missing.map((s) => (
-              <button key={s} className="chip" onClick={() => create('envelopes', { name: s, planned: 0, position: snapshot.envelopes.length })}>{s}</button>
-            ))}
-          </div>
-        </Card>
-      )}
+    {missing.length > 0 && <Card title={t('budget.commonCategories')}><div className="chips">{missing.map((name) => <button key={name} className="chip" onClick={() => create('envelopes', { name, planned: 0, position: snapshot.envelopes.length })}>{name}</button>)}</div></Card>}
 
-      {adding && (
-        <EnvelopeSheet
-          title="Nouvelle enveloppe"
-          initialName=""
-          initialPlanned={0}
-          onClose={() => setAdding(false)}
-          onSave={(name, planned) => {
-            create('envelopes', { name, planned, position: snapshot.envelopes.length })
-            setAdding(false)
-          }}
-        />
-      )}
-
-      {editing && (
-        <EnvelopeSheet
-          title="Modifier l'enveloppe"
-          initialName={snapshot.envelopes.find((e) => e.id === editing)?.name ?? ''}
-          initialPlanned={snapshot.envelopes.find((e) => e.id === editing)?.planned ?? 0}
-          monthNote={`Le montant s'applique à ${monthLabel(month)} et aux mois suivants.`}
-          onDelete={() => { remove('envelopes', editing); setEditing(null) }}
-          onClose={() => setEditing(null)}
-          onSave={(name, planned) => {
-            update('envelopes', editing, { name, planned })
-            const override = ledger.budget_overrides.find((o) => o.envelope_id === editing && o.month === month && o.deleted_at === null)
-            if (override) update('budget_overrides', override.id, { planned })
-            setEditing(null)
-          }}
-        />
-      )}
-    </>
-  )
+    {adding && <EnvelopeSheet title={t('budget.newEnvelope')} initialName="" initialPlanned={0} onClose={() => setAdding(false)} onSave={(name, planned) => { create('envelopes', { name, planned, position: snapshot.envelopes.length }); setAdding(false) }} />}
+    {editing && <EnvelopeSheet title={t('budget.editEnvelope')} initialName={snapshot.envelopes.find((envelope) => envelope.id === editing)?.name ?? ''} initialPlanned={snapshot.envelopes.find((envelope) => envelope.id === editing)?.planned ?? 0} monthNote={t('budget.appliesFrom', { month: monthLabel(month) })} onDelete={() => { remove('envelopes', editing); setEditing(null) }} onClose={() => setEditing(null)} onSave={(name, planned) => { update('envelopes', editing, { name, planned }); const override = ledger.budget_overrides.find((row) => row.envelope_id === editing && row.month === month && row.deleted_at === null); if (override) update('budget_overrides', override.id, { planned }); setEditing(null) }} />}
+  </>
 }
 
-function EnvelopeSheet({ title, initialName, initialPlanned, monthNote, onClose, onSave, onDelete }: {
-  title: string
-  initialName: string
-  initialPlanned: number
-  monthNote?: string
-  onClose: () => void
-  onSave: (name: string, planned: number) => void
-  onDelete?: () => void
-}) {
+function EnvelopeSheet({ title, initialName, initialPlanned, monthNote, onClose, onSave, onDelete }: { title: string; initialName: string; initialPlanned: number; monthNote?: string; onClose: () => void; onSave: (name: string, planned: number) => void; onDelete?: () => void }) {
+  const { t } = useI18n()
+  const money = useMoneyText()
   const [name, setName] = useState(initialName)
   const [planned, setPlanned] = useState(initialPlanned)
-  return (
-    <Sheet title={title} onClose={onClose}>
-      <Field label="Nom de l'enveloppe"><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Alimentation" autoFocus /></Field>
-      <Field label="Budget mensuel en FCFA" hint={monthNote}><AmountInput value={planned} onChange={setPlanned} /></Field>
-      <div className="tiny mt">{planned > 0 ? `Soit environ ${formatInt(Math.floor(planned / 30))} FCFA par jour.` : ''}</div>
-      <div className="btn-row mt">
-        {onDelete && <button className="btn danger" onClick={onDelete}>Supprimer</button>}
-        <button className="btn primary" disabled={name.trim() === ''} onClick={() => onSave(name.trim(), planned)}>Enregistrer</button>
-      </div>
-    </Sheet>
-  )
+  return <Sheet title={title} onClose={onClose}>
+    <Field label={t('budget.envelopeName')}><input value={name} onChange={(event) => setName(event.target.value)} placeholder={t('category.food')} autoFocus /></Field>
+    <Field label={t('budget.monthlyBudget')} hint={monthNote}><AmountInput value={planned} onChange={setPlanned} /></Field>
+    <div className="tiny mt">{planned > 0 ? t('budget.perDay', { amount: money(Math.floor(planned / 30)) }) : ''}</div>
+    <div className="btn-row mt">{onDelete && <button className="btn danger" onClick={onDelete}>{t('common.delete')}</button>}<button className="btn primary" disabled={name.trim() === ''} onClick={() => onSave(name.trim(), planned)}>{t('common.save')}</button></div>
+  </Sheet>
 }
