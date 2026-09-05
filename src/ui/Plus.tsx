@@ -10,10 +10,29 @@ const PRIVACY_URLS = {
 
 export default function Plus({ go }: { go: (screen: string) => void }) {
   const { session, online } = useApp()
-  const { language, t } = useI18n()
+  const { language, setLanguage, t } = useI18n()
 
   return (
     <div className="more-page">
+      <Card title="🌐 Langue / Language" className="menu-card">
+        <div className="chips" role="group" aria-label="Langue / Language">
+          <button
+            className={`chip ${language === 'fr' ? 'on' : ''}`}
+            onClick={() => setLanguage('fr')}
+            aria-pressed={language === 'fr'}
+          >
+            Français
+          </button>
+          <button
+            className={`chip ${language === 'en' ? 'on' : ''}`}
+            onClick={() => setLanguage('en')}
+            aria-pressed={language === 'en'}
+          >
+            English
+          </button>
+        </div>
+      </Card>
+
       <Card title="Premium" className="menu-card premium-menu-card">
         <MenuItem icon="target" title="Mon Budget Familial Premium" subtitle={t('premium.priceInPlay')} onClick={() => go('premium')} />
       </Card>
